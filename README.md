@@ -1,6 +1,6 @@
 
 
-[ ] Specify database structure
+[X] Specify database structure
 [ ] Ingest new results from FITS files (overwrite any existing results)
 [ ] After ingestion, create new figures at the node-level.
 [ ] If all node results are in, produce wg-level comparisons.
