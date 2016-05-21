@@ -1,16 +1,16 @@
 
-"""
-A convenience object for databases.
-"""
+""" A convenience object for databases. """
 
+import logging
 import psycopg2 as pg
+from time import time
 
-
+logger = logging.getLogger("ges")
 
 class Database(object):
 
     def __init__(self, **kwargs):
-        self._connection = pg.connect(**kwargs)
+        self.connection = pg.connect(**kwargs)
         return None
 
 
@@ -76,8 +76,8 @@ class Database(object):
         """
 
         t_init = time()
-        try:    
-            with self._connection.cursor() as cursor:
+        try:
+            with self.connection.cursor() as cursor:
                 cursor.execute(query, values)
                 if fetch: results = cursor.fetchall()
                 else: results = None
@@ -90,12 +90,12 @@ class Database(object):
         else:
             taken = 1e3 * (time() - t_init)
             try:
-                logger.info("Took {0:.0f} ms for SQL query {1}".format(taken,
+                logger.debug("Took {0:.0f} ms for SQL query {1}".format(taken,
                     " ".join((query % values).split())))
             except (TypeError, ValueError):
-                logger.info("Took {0:.0f} ms for SQL query {1} with values {2}"\
+                logger.debug("Took {0:.0f} ms for SQL query {1} with values {2}"\
                     .format(taken, query, values))
-
+        
         names = None if cursor.description is None \
             else tuple([column[0] for column in cursor.description])
         return (names, results, cursor)
@@ -123,7 +123,7 @@ class Database(object):
             if "." in description:
                 wg, node_description = description.split(".")
             else:
-                node_description = description
+                raise NotImplementedError
 
             # Search by the name, filter by wg?
             # TODO

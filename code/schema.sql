@@ -3,16 +3,16 @@
     Schema description for the iDR5 quality control phase.
 */
 
-DROP TABLE IF EXISTS masterlist;
-CREATE TABLE masterlist (
-    cname char(21) not null,
-    ges_fld char(23) not null,
-    object char(28) not null,
-    filename char(255) not null,
+DROP TABLE IF EXISTS spectra;
+CREATE TABLE spectra (
+    cname char(16) not null,
+    ges_fld char(12) not null,
+    object char(32) not null,
+    filename char(36) not null,
     ges_type char(8) not null,
-    setup char(9) not null,
+    setup char(5) not null,
     wg integer not null,
-    instrument char(1) not null,
+    instrument char(18) not null,
     ra numeric not null,
     dec numeric not null,
     snr numeric not null,
@@ -22,23 +22,23 @@ CREATE TABLE masterlist (
     e_vrot numeric,
     teff_irfm numeric,
     e_teff_irfm numeric,
-    peculi char(255),
-    remark char(255),
-    tech char(255)
+    peculi char(11),
+    remark char(11),
+    tech char(69)
 );
-ALTER TABLE masterlist ADD COLUMN id BIGSERIAL PRIMARY KEY;
+ALTER TABLE spectra ADD COLUMN id BIGSERIAL PRIMARY KEY;
 
-DROP TABLE IF EXISTS node;
-CREATE TABLE node (
+DROP TABLE IF EXISTS nodes;
+CREATE TABLE nodes (
     wg integer not null,
     name char(10) not null
 );
-ALTER TABLE node ADD COLUMN id BIGSERIAL PRIMARY KEY;
+ALTER TABLE nodes ADD COLUMN id BIGSERIAL PRIMARY KEY;
 
-DROP TABLE IF EXISTS result;
-CREATE TABLE result (
+DROP TABLE IF EXISTS results;
+CREATE TABLE results (
     node_id integer not null,
-    cname char(21) not null,
+    cname char(16) not null,
     filename char(255) not null,
     setup char(100) not null,
     teff numeric,
@@ -53,4 +53,4 @@ CREATE TABLE result (
     remark char(255),
     tech char(255)
 );
-ALTER TABLE result ADD COLUMN id BIGSERIAL PRIMARY KEY;
+ALTER TABLE results ADD COLUMN id BIGSERIAL PRIMARY KEY;
