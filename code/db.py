@@ -2,10 +2,12 @@
 """ A convenience object for databases. """
 
 import logging
+import numpy as np
 import psycopg2 as pg
 from time import time
 
 logger = logging.getLogger("ges")
+
 
 class Database(object):
 
