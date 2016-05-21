@@ -65,4 +65,4 @@ List of figures:
 
 List of tables:
 - [X] Number of stars with valid TEFF/LOGG/FEH/XI values, and number of TECH/similar flags shown. [#1]
-- [ ] Range of parameters reported.
+- [X] Range of parameters reported.

@@ -8,6 +8,50 @@ from astropy.table import Table
 
 import utils
 
+def stellar_parameter_range(database, wg=None):
+    """
+    Produce a summary table outlining the range of stellar parameters reported.
+
+    :param database:
+        A database for transactions.
+
+    :param wg: [optional]
+        A specific working group.
+    """
+
+    if wg is None:
+        nodes = database.retrieve("SELECT id, wg, name FROM nodes")
+    else:
+        nodes = database.retrieve("SELECT id, wg, name FROM nodes WHERE wg = %s",
+            (utils.wg_as_int(wg), ))
+
+    rows = []
+    for node_id, node_wg, node_name in nodes:
+        results = database.retrieve_table(
+            """SELECT teff, e_teff, logg, e_logg, mh, e_mh, xi, e_xi
+               FROM results WHERE node_id = %s""", (node_id, ))
+
+        name = "WG{}/{}".format(node_wg, node_name) if wg is None else node_name
+        if results is None or len(results) == 0:
+            rows.append([name] + [np.nan] * 16)
+            continue
+
+        row = [name]
+        for column in ("teff", "logg", "mh", "xi"):
+            for column in [column, "e_{}".format(column)]:
+                row.extend([
+                    np.nanmin(results[column]),
+                    np.nanmax(results[column])
+                ])
+        rows.append(row)
+
+    return Table(rows=rows, names=("Name", 
+        "Min. TEFF", "Max. TEFF", "Min. E_TEFF", "Max. E_TEFF",
+        "Min. LOGG", "Max. LOGG", "Min. E_LOGG", "Max. E_LOGG",
+        "Min. MH", "Max. MH", "Min. E_MH", "Max. E_MH",
+        "Min. XI", "Max. XI", "Min. E_XI", "Max. E_XI"))
+
+
 def stellar_parameter_summary(database, wg=None):
     """
     Produce a summary table outlining the number of valid results produced by
@@ -18,9 +62,6 @@ def stellar_parameter_summary(database, wg=None):
 
     :param wg: [optional]
         The working group.
-
-    :param node_name:
-        The name of the node to summarize results for.
     """
 
     # Get node ids.
@@ -28,7 +69,7 @@ def stellar_parameter_summary(database, wg=None):
         nodes = database.retrieve("""SELECT id, wg, name FROM nodes""")
     else:
         nodes = database.retrieve(
-            """SELECT id, name FROM nodes WHERE wg = %s""",
+            """SELECT id, wg, name FROM nodes WHERE wg = %s""",
             (utils.wg_as_int(wg), ))
 
     rows = []

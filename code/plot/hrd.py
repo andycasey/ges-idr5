@@ -86,7 +86,7 @@ def hrd(database, wg, node_name, where=None, isochrones=None,
     else:
         ax.axhline(mark[1], c="k", lw=2, zorder=-1)
         ax.axvline(mark[0], c="k", lw=2, zorder=-1)
-        ax.scatter([mark[0], mark[1]], facecolor="k", s=100)
+        ax.scatter([mark[0]], [mark[1]], facecolor="k", s=100)
         ax.set_xlim(ax.get_xlim())[::-1]
         ax.set_ylim(ax.get_ylim())[::-1]
 
