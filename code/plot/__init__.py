@@ -1,1 +1,1 @@
-from hrd import hrd
+from hrd import *
