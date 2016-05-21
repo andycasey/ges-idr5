@@ -64,5 +64,5 @@ List of figures:
 - [ ] Compare node-to-node parameters for WG13 [#8]
 
 List of tables:
-- [ ] Number of stars with valid TEFF/LOGG/FEH/XI values, and number of TECH/similar flags shown. [#1]
+- [X] Number of stars with valid TEFF/LOGG/FEH/XI values, and number of TECH/similar flags shown. [#1]
 - [ ] Range of parameters reported.

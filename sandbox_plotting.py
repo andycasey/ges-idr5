@@ -20,3 +20,8 @@ fig = plot.stellar_parameter_histograms(database, 11, "Lumba")
 
 
 fig = plot.stellar_parameter_error_histograms(database, 11, "EPINARBO")
+
+
+from code import summary
+
+foo = summary.stellar_parameter_summary(database)
