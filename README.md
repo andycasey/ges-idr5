@@ -28,3 +28,41 @@ WG-level comparisons:
 - Distributions of TEFF/LOGG/FEH/XI for the benchmarks (box and whisker plots)
 - RMS as a function of SNR for TEFF/LOGG/FEH/XI
 - Reported error distributions in TEFF/LOGG/FEH/XI
+
+# General checks
+#1: Compare iDR4 results with the new results.
+#2: What did you get for the Sun?
+#3: Compare benchmark parameters with reference values.
+#4: Extract open cluster and globular cluster members
+#5: Review parameter distribution of field stars
+#6: Review range of values for each results column.
+#7: Compare results to photometric TEFF
+#8: WG-specific checks/special cases
+
+
+List of figures:
+- [ ] Scatter plot showing iDR5 TEFF for a given node against the iDR4 RECOMMENDED value (1-to-1 and residual axis) [#1]
+- [ ] Scatter plot showing iDR5 LOGG for a given node against the iDR4 RECOMMENDED value (1-to-1 and residual axis) [#1]
+- [ ] Scatter plot showing iDR5 FEH for a given node against the iDR4 RECOMMENDED value (1-to-1 and residual axis) [#1]
+- [ ] Scatter plot showing iDR5 XI for a given node against the iDR4 RECOMMENDED value (1-to-1 and residual axis) [#1]
+- [ ] Scatter plot showing TEFF vs LOGG (colored by FEH) for all Solar spectra, highlighting the accepted position. [#2]
+- [ ] Compare benchmark parameters with reference values as a box and whisker plot. [#3]
+- [ ] Show a number of globular and open clusters compared to isochrones & accepted literature metallicity [#4]
+- [ ] Show TEFF vs FEH, and TEFF vs LOGG and TEFF vs XI for globular/open cluster stars. [#4]
+- [ ] Show LOGG vs FEH and LOGG vs TEFF and LOGG vs XI for globular/open cluster stars. [#4]
+- [ ] Histogram of TEFF [#5]
+- [ ] Histogram of LOGG [#5]
+- [ ] Histogram of FEH [#5]
+- [ ] Histogram of XI [#5]
+- [X] HR diagram with metallicity color map [#5]
+- [ ] Histogram of E_TEFF [#6]
+- [ ] Histogram of E_LOGG [#6]
+- [ ] Histogram of E_FEH [#6]
+- [ ] Histogram of XI [#6]
+- [ ] Compare TEFF to photometric TEFF [#7]
+- [ ] Compare HR10|HR21 field with HR21 only stars in TEFF/LOGG [#8]
+- [ ] Compare node-to-node parameters for WG13 [#8]
+
+List of tables:
+- [ ] Number of stars with valid TEFF/LOGG/FEH/XI values, and number of TECH/similar flags shown. [#1]
+- [ ] Range of parameters reported.

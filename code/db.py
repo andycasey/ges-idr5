@@ -4,6 +4,9 @@
 import logging
 import numpy as np
 import psycopg2 as pg
+from astropy.table import Table
+from collections import Counter
+from decimal import Decimal
 from time import time
 
 logger = logging.getLogger("ges")
@@ -101,6 +104,61 @@ class Database(object):
         names = None if cursor.description is None \
             else tuple([column[0] for column in cursor.description])
         return (names, results, cursor)
+
+
+    def retrieve_table(self, query, values=None, prefixes=True, **kwargs):
+        """
+        Retrieve a named table from a database.
+
+        :param query:
+            The SQL query to execute.
+
+        :type query:
+            str
+
+        :param values: [optional]
+            Values to use when formatting the SQL string.
+
+        :type values:
+            tuple or dict
+
+        :param prefixes: [optional]
+            Prefix duplicate column names with the given tuple.
+
+        :type prefixes:
+            tuple of str
+        """
+
+        names, rows, rowcount = self.retrieve(query, values, full_output=True)
+
+        # TODO:
+        if len(rows) == 0:
+            return None
+
+        counted_names = Counter(names)
+        duplicates = [k for k, v in counted_names.items() if v > 1]
+        if duplicates and prefixes:
+
+            use_prefixes = map(str, range(max(counted_names.values()))) \
+                if isinstance(prefixes, bool) else prefixes
+
+            # Put the prefixes and names in the right order & format for joining
+            prefixes = [
+                ([], [use_prefixes[names[:i].count(n)]])[n in duplicates] \
+                for i, n in enumerate(names)]
+            names = [[n] for n in names]
+            names = [".".join(p + n) for p, n in zip(prefixes, names)]
+
+        # Guess data types.
+        dtype = kwargs.pop("dtype", None)
+        if dtype is None:
+            dtype = []
+            for i, name in enumerate(names):
+                if isinstance(rows[0][i], Decimal):
+                    dtype.append(float)
+                else:
+                    dtype.append(type(rows[0][i]))
+        return Table(rows=rows, names=names, dtype=dtype)
 
 
     def node_id(self, description):
