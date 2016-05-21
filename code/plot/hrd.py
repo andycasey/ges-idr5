@@ -9,7 +9,7 @@ from matplotlib.ticker import MaxNLocator
 
 
 def hrd(database, wg, node_name, where=None, isochrones=None,
-    show_other_wg_nodes=False):
+    show_other_wg_nodes=False, mark=None):
     """
     Return a Hertszprung-Russell Diagram (effective temperature versus surface
     gravity) for all stars reported by a single node.
@@ -32,6 +32,10 @@ def hrd(database, wg, node_name, where=None, isochrones=None,
     :param show_other_wg_nodes: [optional]
         If set to `True`, the results from other nodes in the same working
         group will be shown in the background to provide context.
+
+    :param mark: [optional]
+        Mark an (x, y) position with vertical and horizontal lines in the
+        figure.
     """
 
     node_id = database.retrieve_node_id(wg, node_name)
@@ -68,7 +72,7 @@ def hrd(database, wg, node_name, where=None, isochrones=None,
     # Error bars.
     ax.errorbar(results["teff"][ok], results["logg"][ok],
         xerr=results["e_teff"][ok], yerr=results["e_logg"][ok],
-        fmt=None, c="#666666", zorder=-1)
+        fmt=None, ecolor="#666666", zorder=-1, alpha=0.5)
 
     scat = ax.scatter(results["teff"][ok], results["logg"][ok],
         c=results["mh"][ok], s=s, cmap="plasma", zorder=2)
@@ -76,8 +80,16 @@ def hrd(database, wg, node_name, where=None, isochrones=None,
     cbar = plt.colorbar(scat)
     cbar.set_label(r"$[{\rm Fe}/{\rm H}]$")
 
-    ax.set_xlim(8000, 3000)
-    ax.set_ylim(5.5, 0)
+    if mark is None:
+        ax.set_xlim(8000, 3000)
+        ax.set_ylim(5.5, 0)
+    else:
+        ax.axhline(mark[1], c="k", lw=2, zorder=-1)
+        ax.axvline(mark[0], c="k", lw=2, zorder=-1)
+        ax.scatter([mark[0], mark[1]], facecolor="k", s=100)
+        ax.set_xlim(ax.get_xlim())[::-1]
+        ax.set_ylim(ax.get_ylim())[::-1]
+
     ax.set_xlabel(r"$T_{\rm eff}$ $({\rm K})$")
     ax.set_ylabel(r"$\log{g}$")
 

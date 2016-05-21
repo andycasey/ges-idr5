@@ -15,7 +15,6 @@ from astropy.io import fits
 
 from code import GESDatabase
 
-raise AreYouSureError?
 
 db_filename = "code/db.yaml"
 nodes_filename = "nodes.yaml"
@@ -67,12 +66,16 @@ node_names = ("Bologna", "Lumba", "ULB", "MyGIsFOS", "CAUP", "Vilnius", "EPINARB
 fake_modes = {
     "Bologna": {
         "teff": (5000, 400),
+        "e_teff": (100, 20),
         "logg": (3.5, 0.5),
+        "e_logg": (0.3, 0.05),
         "mh": (0, 0.5),
-        "xi": (1, 0.2)
+        "e_mh": (0.1, 0.02),
+        "xi": (1, 0.2),
     },
     "Lumba": {
         "teff": (5000, 400),
+        "e_teff": (100, 10),
         "logg": (3.5, 0.5),
         "mh": (0, 0.5),
         "xi": (1, 0.2)

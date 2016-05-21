@@ -13,9 +13,13 @@ database = GESDatabase(**credentials)
 
 from code import plot
 
-fig = plot.hrd(database, 11, "EPINARBO")
+fig = plot.hrd(database, 11, "Bologna")
+
+fig_sun = plot.hrd(database, 11, "Bologna", mark=(5777, 4.4),
+    where="CNAME = 'ssssssss-sssssss'")
 
 
+raise a
 fig = plot.stellar_parameter_histograms(database, 11, "Lumba")
 
 

@@ -45,7 +45,7 @@ List of figures:
 - [ ] Scatter plot showing iDR5 LOGG for a given node against the iDR4 RECOMMENDED value (1-to-1 and residual axis) [#1]
 - [ ] Scatter plot showing iDR5 FEH for a given node against the iDR4 RECOMMENDED value (1-to-1 and residual axis) [#1]
 - [ ] Scatter plot showing iDR5 XI for a given node against the iDR4 RECOMMENDED value (1-to-1 and residual axis) [#1]
-- [ ] Scatter plot showing TEFF vs LOGG (colored by FEH) for all Solar spectra, highlighting the accepted position. [#2]
+- [X] Scatter plot showing TEFF vs LOGG (colored by FEH) for all Solar spectra, highlighting the accepted position. [#2]
 - [ ] Compare benchmark parameters with reference values as a box and whisker plot. [#3]
 - [ ] Show a number of globular and open clusters compared to isochrones & accepted literature metallicity [#4]
 - [ ] Show TEFF vs FEH, and TEFF vs LOGG and TEFF vs XI for globular/open cluster stars. [#4]
