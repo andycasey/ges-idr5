@@ -1,10 +1,68 @@
 
-__all__ = ["hrd", "stellar_parameter_histograms", "stellar_parameter_error_histograms"]
+__all__ = ["hrd", "stellar_parameter_histograms", "stellar_parameter_error_histograms",
+    "hrd_by_setup"]
 
 
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
+from matplotlib import gridspec
+
+def hrd_by_setup(database, wg, node_name):
+    """
+    Show Hertszprung-Russell Diagrams for stars in each unique setup.
+
+    :param database:
+        A database for transactions.
+
+    :param wg:
+        The working group.
+
+    :param node_name:
+        The name of the node to show results for.
+    """
+
+    node_id = database.retrieve_node_id(wg, node_name)
+
+    # Get results.
+    results = database.retrieve_table(
+        """ SELECT cname, setup, teff, e_teff, logg, e_logg, mh, e_mh, xi, e_xi
+            FROM results WHERE node_id = %s""", (node_id, ))
+
+    setups = sorted(list(set(results["setup"])))
+    N_setups = len(setups)
+
+    gs = gridspec.GridSpec(1, N_setups + 1, width_ratios=([12] * N_setups) + [1])
+
+    if not np.any(np.isfinite(results["xi"])):
+        # Don't show size-varying points.
+        s = None
+    else:
+        s = 100 * results["xi"]
+        ok *= np.isfinite(results["xi"])
+
+    fig = plt.figure()
+    for i, setup in enumerate(setups):
+        ax = fig.add_subplot(gs[i])
+
+        mask = (results["setup"] == setup)
+        scat = ax.scatter(results["teff"][mask], results["logg"][mask],
+            facecolor=results["mh"][mask], s=s[mask],
+            vmin=np.nanmin(results["mh"]), vmax=np.nanmax(results["mh"]),
+            cmap="plasma")
+        ax.errorbar(results["teff"][mask], results["logg"][mask],
+            xerr=results["e_teff"][mask], yerr=results["e_logg"][mask],
+            fmt=None, ecolor="#666666", alpha=0.5, zorder=-1)
+
+        ax.set_xlabel(r"$T_{\rm eff}$ $({\rm K})$")
+        ax.set_ylabel(r"$\log{g}$")
+        ax.set_title(setup)
+
+    cax = fig.add_subplot(gs[-1])
+    cb = fig.colorbar(cax=cax, mappable=scat)
+    cb.set_label(r"$[{\rm Fe}/{\rm H}]$")
+
+    return fig
 
 
 

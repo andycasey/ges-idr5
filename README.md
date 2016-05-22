@@ -41,15 +41,15 @@ WG-level comparisons:
 
 
 List of figures:
-- [ ] Scatter plot showing iDR5 TEFF for a given node against the iDR4 RECOMMENDED value (1-to-1 and residual axis) [#1]
-- [ ] Scatter plot showing iDR5 LOGG for a given node against the iDR4 RECOMMENDED value (1-to-1 and residual axis) [#1]
-- [ ] Scatter plot showing iDR5 FEH for a given node against the iDR4 RECOMMENDED value (1-to-1 and residual axis) [#1]
-- [ ] Scatter plot showing iDR5 XI for a given node against the iDR4 RECOMMENDED value (1-to-1 and residual axis) [#1]
+- [X] Scatter plot showing iDR5 TEFF for a given node against the iDR4 RECOMMENDED value (1-to-1 and residual axis) [#1]
+- [X] Scatter plot showing iDR5 LOGG for a given node against the iDR4 RECOMMENDED value (1-to-1 and residual axis) [#1]
+- [X] Scatter plot showing iDR5 FEH for a given node against the iDR4 RECOMMENDED value (1-to-1 and residual axis) [#1]
+- [X] Scatter plot showing iDR5 XI for a given node against the iDR4 RECOMMENDED value (1-to-1 and residual axis) [#1]
 - [X] Scatter plot showing TEFF vs LOGG (colored by FEH) for all Solar spectra, highlighting the accepted position. [#2]
 - [ ] Compare benchmark parameters with reference values as a box and whisker plot. [#3]
-- [ ] Show a number of globular and open clusters compared to isochrones & accepted literature metallicity [#4]
-- [ ] Show TEFF vs FEH, and TEFF vs LOGG and TEFF vs XI for globular/open cluster stars. [#4]
-- [ ] Show LOGG vs FEH and LOGG vs TEFF and LOGG vs XI for globular/open cluster stars. [#4]
+- [X] Show a number of globular and open clusters compared to isochrones & accepted literature metallicity [#4]
+- [X] Show TEFF vs FEH, and TEFF vs LOGG and TEFF vs XI for globular/open cluster stars. [#4]
+- [X] Show LOGG vs FEH and LOGG vs TEFF and LOGG vs XI for globular/open cluster stars. [#4]
 - [X] Histogram of TEFF [#5]
 - [X] Histogram of LOGG [#5]
 - [X] Histogram of FEH [#5]
@@ -59,9 +59,9 @@ List of figures:
 - [X] Histogram of E_LOGG [#6]
 - [X] Histogram of E_FEH [#6]
 - [X] Histogram of XI [#6]
-- [ ] Compare TEFF to photometric TEFF [#7]
-- [ ] Compare HR10|HR21 field with HR21 only stars in TEFF/LOGG [#8]
-- [ ] Compare node-to-node parameters for WG13 [#8]
+- [X] Compare TEFF to photometric TEFF [#7]
+- [X] Compare HR10|HR21 field with HR21 only stars in TEFF/LOGG  [#8]
+- [X] Compare node-to-node parameters for WG13 [#8]
 
 List of tables:
 - [X] Number of stars with valid TEFF/LOGG/FEH/XI values, and number of TECH/similar flags shown. [#1]

@@ -48,6 +48,9 @@ connection.close()
 # Create a database object.
 database = GESDatabase(**credentials)
 
+# Ingest previous data release.
+database.ingest_recommended_results_from_previous_dr("/Users/arc/research/ges-idr4-abundances/GES_iDR4_WG15_Recommended_Abundances_20042016.fits")
+
 # Create nodes.
 with open(nodes_filename, "r") as fp:
     all_nodes = yaml.load(fp)

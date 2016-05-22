@@ -85,6 +85,59 @@ class GESDatabase(Database):
         return node_id
 
 
+    def ingest_recommended_results_from_previous_dr(self, filename, extension=-1):
+        """
+        Ingest recommended results from a node FITS file.
+
+        :param filename:
+            A node template file in FITS format.
+
+        :param extension: [optional]
+            The extension index to read from.
+
+        :returns:
+            The number of rows inserted.
+        """
+
+        image = fits.open(filename)
+        data = image[extension].data
+
+        columns = ("cname", "ges_fld", "object", "filename", "ges_type",
+            "teff", "e_teff", "logg", "e_logg", "mh", "e_mh", "xi", "e_xi",
+            "peculi", "remark", "tech")
+
+        fits_format_adapters = {
+            "teff": float,
+            "e_teff": float,
+            "logg": float,
+            "e_logg": float,
+            "mh": float,
+            "e_mh": float,
+            "xi": float,
+            "e_xi": float,
+        }
+
+        N = len(data)
+        for i, row in enumerate(data):
+            logger.info("Ingesting recommended row {}/{}".format(i, N))
+            row_data = {}
+            for column in columns:
+                value = row[column]
+                f = fits_format_adapters.get(column, None)
+                if f is not None:
+                    value = f(value)
+                row_data[column] = value
+
+            self.execute(
+                "INSERT INTO recommended_idr4 ({}) VALUES ({})".format(
+                    ", ".join(columns),
+                    ", ".join(["%({})s".format(column) for column in columns])),
+                row_data)
+
+        self.connection.commit()
+        return N
+
+
     def ingest_node_results(self, filename, extension=-1):
         """
         Ingest results from a node FITS file.

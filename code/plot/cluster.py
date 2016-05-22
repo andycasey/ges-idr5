@@ -9,7 +9,82 @@ from matplotlib import gridspec
 
 import utils
 
-__all__ = ["cluster"]
+__all__ = ["cluster", "param_vs_param"]
+
+
+def param_vs_param(database, wg, node_name, ges_fld, reference_parameter,
+    vel_range=(-1000, 1000)):
+    """
+    Show parameters vs parameters for stars in a cluster.
+    :param database:
+        A database for transactions.
+
+    :param wg:
+        The working group.
+
+    :param node_name:
+        The name of the node to show results for.
+
+    :param ges_fld:
+        The name of the cluster (as listed in GES_FLD).
+
+    :param reference_parameter:
+        The name of the reference parameter to show on the x-axis.
+
+    :param vel_range: [optional]
+        The (lower, upper) range of velocities (VEL) to select as bonafide
+        cluster members.
+    """
+
+    parameters = ["teff", "logg", "mh", "xi"]
+    reference_parameter = reference_parameter.lower()
+    if reference_parameter not in parameters:
+        raise ValueError("unrecognized reference parameter")
+    parameters.remove(reference_parameter)
+
+    labels = {
+        "teff": r"$T_{\rm eff}$ $({\rm K})$",
+        "logg": r"$\log{g}$",
+        "mh":   r"$[{\rm Fe}/{\rm H}]$",
+        "xi":   r"$\xi$ $({\rm km}$ ${\rm s}^{-1})$"
+    }
+
+    # Get the data.
+    node_id = database.retrieve_node_id(wg, node_name)
+
+    # Collect the results for this node.
+    results = database.retrieve_table(
+        """ SELECT  DISTINCT ON (r.cname)
+                    r.cname, r.node_id, r.setup, s.filename, s.vel, s.e_vel, 
+                    teff, e_teff, logg, e_logg, mh, e_mh, xi, e_xi
+            FROM    results r, spectra s 
+            WHERE   r.cname = s.cname
+                AND TRIM(s.ges_fld) = %s
+                AND s.vel > %s
+                AND s.vel < %s
+                AND node_id = %s""",
+                (ges_fld, min(vel_range), max(vel_range), node_id))
+
+    fig, axes = plt.subplots(3, 1)
+    for i, (ax, parameter) in enumerate(zip(axes, parameters)):
+
+        ax.scatter(results[reference_parameter], results[parameter],
+            facecolor="#666666", zorder=1)
+        ax.errorbar(results[reference_parameter], results[parameter],
+            xerr=results["e_{}".format(reference_parameter)],
+            yerr=results["e_{}".format(parameter)],
+            fmt=None, ecolor="k", alpha=0.5, zorder=-1)
+
+        if ax.is_last_row():
+            ax.set_xlabel(labels.get(reference_parameter, reference_parameter))
+        else:
+            ax.set_xticklabels([])
+
+        ax.set_ylabel(labels.get(parameter, parameter))
+
+    return fig
+
+
 
 def cluster(database, wg, node_name, ges_fld, vel_range=(-1000, 1000),
     isochrone_filename=None):
@@ -113,7 +188,6 @@ def cluster(database, wg, node_name, ges_fld, vel_range=(-1000, 1000),
     ax_hrd.set_xlim(ax_hrd.get_xlim()[::-1])
     ax_hrd.set_ylim(ax_hrd.get_ylim()[::-1])
 
-    #cax = fig.add_axes([0.05, 0.9, 0.80, 0.025])
     cb = plt.colorbar(
         cax=plt.subplot(gs[0]), mappable=scat, orientation='horizontal')
     cb.ax.xaxis.set_ticks_position('top')

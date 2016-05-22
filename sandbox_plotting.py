@@ -13,6 +13,16 @@ database = GESDatabase(**credentials)
 
 from code import plot
 
+#fig = plot.compare_nodes_within_wg(database, 11, "teff")
+#fig = plot.compare_to_photometric_teff(database, 11, "Bologna")
+
+#fig = plot.compare_to_previous_dr(database, 11, "Bologna", "teff")
+
+fig = plot.hrd_by_setup(database, 11, "Bologna")
+
+
+raise a
+
 fig = plot.hrd(database, 11, "Bologna")
 
 fig_sun = plot.hrd(database, 11, "Bologna", mark=(5777, 4.4),
@@ -21,6 +31,9 @@ fig_sun = plot.hrd(database, 11, "Bologna", mark=(5777, 4.4),
 from code import summary
 
 bar = summary.stellar_parameter_range(database)
+
+foo = plot.param_vs_param(database, 11, "Bologna", "NGC6705", "xi")
+raise a
 
 foo = plot.cluster(database, 11, "Bologna", "NGC6705",
     isochrone_filename="isochrones/NGC6705_Parsec_0.3Gyr_Z0.018.dat")

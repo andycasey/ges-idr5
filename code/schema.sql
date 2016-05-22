@@ -28,6 +28,27 @@ CREATE TABLE spectra (
 );
 ALTER TABLE spectra ADD COLUMN id BIGSERIAL PRIMARY KEY;
 
+DROP TABLE IF EXISTS recommended_idr4;
+CREATE TABLE recommended_idr4 (
+    cname char(16) not null,
+    ges_fld char(23) not null,
+    object char(74) not null,
+    filename char(162) not null,
+    ges_type char(20) not null,
+    teff numeric,
+    e_teff numeric,
+    logg numeric,
+    e_logg numeric,
+    mh numeric,
+    e_mh numeric,
+    xi numeric,
+    e_xi numeric,
+    peculi char(29),
+    remark char(16),
+    tech char(87)
+);
+ALTER TABLE recommended_idr4 ADD COLUMN id BIGSERIAL PRIMARY KEY;
+
 DROP TABLE IF EXISTS nodes;
 CREATE TABLE nodes (
     wg integer not null,
