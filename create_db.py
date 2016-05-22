@@ -22,6 +22,7 @@ schema_filename = "code/schema.sql"
 masterlist_filename \
     = "fits-templates/masterlist/GES_iDR5_spectra_masterlist_15052016.fits"
 
+raise AreYouSureError
 
 # Connect to database.
 with open(db_filename, "r") as fp:
@@ -56,7 +57,7 @@ for wg, node_names in all_nodes.items():
         node_id = database.create_or_retrieve_node_id(wg, node_name)
 
 # Ingest the masterlist of spectra.
-#N_ingested = database.ingest_spectra_masterlist(masterlist_filename)
+N_ingested = database.ingest_spectra_masterlist(masterlist_filename)
 
 # Create some fake data.
 extension = -1

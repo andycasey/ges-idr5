@@ -1,0 +1,123 @@
+
+
+
+import numpy as np
+import os
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
+from matplotlib import gridspec
+
+import utils
+
+__all__ = ["cluster"]
+
+def cluster(database, wg, node_name, ges_fld, vel_range=(-1000, 1000),
+    isochrone_filename=None):
+    """
+    Show a Hertzsprung-Russell diagram for cluster stars, with isochrones
+    optionally shown.
+
+    :param database:
+        A database for transactions.
+
+    :param wg:
+        The working group.
+
+    :param node_name:
+        The name of the node to show results for.
+
+    :param ges_fld:
+        The name of the cluster (as listed in GES_FLD).
+
+    :param vel_range: [optional]
+        The (lower, upper) range of velocities (VEL) to select as bonafide
+        cluster members.
+
+    :param isochrone_filename: [optional]
+        The path of an isochrone_filename file to show for this cluster.
+    """
+
+
+    # Get the data.
+    node_id = database.retrieve_node_id(wg, node_name)
+    
+    # Collect the results for this node.
+    results = database.retrieve_table(
+        """ SELECT  DISTINCT ON (r.cname)
+                    r.cname, r.node_id, r.setup, s.filename, s.vel, s.e_vel, 
+                    r.teff, r.e_teff, r.logg, r.e_logg, r.mh, r.e_mh
+            FROM    results r, spectra s 
+            WHERE   r.cname = s.cname
+                AND TRIM(s.ges_fld) = %s
+                AND s.vel > %s
+                AND s.vel < %s
+                AND node_id = %s""",
+                (ges_fld, min(vel_range), max(vel_range), node_id))
+
+
+    # Draw velocity/metallicity. Highlight members.
+    gs = gridspec.GridSpec(3, 1, height_ratios=[1, 12, 4])
+
+    fig = plt.figure()
+    ax_hrd = plt.subplot(gs[1])
+    ax_diff = plt.subplot(gs[2])
+
+
+    # Draw HRD, distinguishing markers by setup.
+    scat = ax_hrd.scatter(results["teff"], results["logg"], c=results["mh"],
+        label=None)
+    ax_hrd.errorbar(results["teff"], results["logg"],
+        xerr=results["e_teff"], yerr=results["e_logg"],
+        fmt=None, ecolor="k", alpha=0.5, zorder=-1, cmap="plasma",
+        label=None)
+
+    if isochrone_filename is not None:
+        
+        isochrone = utils.parse_isochrone(isochrone_filename)
+
+        label, _ = os.path.splitext(os.path.basename(isochrone_filename))
+        ax_hrd.plot(isochrone["teff"], isochrone["logg"],
+            c="k", lw=2, zorder=-1, label=label)
+
+        # Draw different wrt to isochrone.
+        x = results["teff"]
+        y = []
+        for i in range(len(x)):
+            index = np.argmin(np.abs(results["teff"][i] - isochrone["teff"]))
+            y.append(results["logg"][i] - isochrone["logg"][index])
+
+        ax_diff.scatter(x, y, c=results["mh"])
+        ax_diff.errorbar(x, y, xerr=results["e_teff"], yerr=results["e_logg"],
+            fmt=None, ecolor="k", alpha=0.5, zorder=-1)
+
+        ax_diff.axhline(0, linestyle=":", c="#666666", zorder=-2)
+
+        ax_diff.set_xlabel(r"$T_{\rm eff}$ $({\rm K})$")
+        ax_diff.set_ylabel(r"$\Delta\log{g}$")
+        ax_diff.set_xlim(ax_hrd.get_xlim()[::-1])
+        ax_diff.xaxis.set_major_locator(MaxNLocator(5))
+        ax_diff.yaxis.set_major_locator(MaxNLocator(5))
+        ax_hrd.set_xticklabels([])
+
+        ax_hrd.legend(frameon=False, loc="upper left")
+
+    else:
+        ax_hrd.set_xlabel(r"$T_{\rm eff}$ $({\rm K})$")
+
+    # Labels, etc.
+    ax_hrd.xaxis.set_major_locator(MaxNLocator(5))
+    ax_hrd.yaxis.set_major_locator(MaxNLocator(5))
+
+    ax_hrd.set_ylabel(r"$\log{g}$")
+
+    ax_hrd.set_xlim(ax_hrd.get_xlim()[::-1])
+    ax_hrd.set_ylim(ax_hrd.get_ylim()[::-1])
+
+    #cax = fig.add_axes([0.05, 0.9, 0.80, 0.025])
+    cb = plt.colorbar(
+        cax=plt.subplot(gs[0]), mappable=scat, orientation='horizontal')
+    cb.ax.xaxis.set_ticks_position('top')
+    cb.ax.xaxis.set_label_position('top')
+    cb.set_label(r"$[{\rm Fe}/{\rm H}]$")
+
+    return fig

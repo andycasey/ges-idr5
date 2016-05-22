@@ -22,6 +22,8 @@ from code import summary
 
 bar = summary.stellar_parameter_range(database)
 
+foo = plot.cluster(database, 11, "Bologna", "NGC6705",
+    isochrone_filename="isochrones/NGC6705_Parsec_0.3Gyr_Z0.018.dat")
 
 raise a
 fig = plot.stellar_parameter_histograms(database, 11, "Lumba")
