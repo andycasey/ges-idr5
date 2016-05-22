@@ -38,3 +38,4 @@ def parse_isochrone(filename):
 
 def wg_as_int(wg):
     return int(str(wg).strip().lower().lstrip("wg"))
+

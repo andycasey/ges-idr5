@@ -18,8 +18,9 @@ from code import plot
 
 #fig = plot.compare_to_previous_dr(database, 11, "Bologna", "teff")
 
-fig = plot.hrd_by_setup(database, 11, "Bologna")
+#fig = plot.hrd_by_setup(database, 11, "Bologna")
 
+fig = plot.node_benchmark_performance(database, 11, "Bologna")
 
 raise a
 

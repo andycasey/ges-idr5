@@ -34,12 +34,11 @@ def hrd_by_setup(database, wg, node_name):
 
     gs = gridspec.GridSpec(1, N_setups + 1, width_ratios=([12] * N_setups) + [1])
 
-    if not np.any(np.isfinite(results["xi"])):
+    if not np.all(np.isfinite(results["xi"])):
         # Don't show size-varying points.
         s = None
     else:
         s = 100 * results["xi"]
-        ok *= np.isfinite(results["xi"])
 
     fig = plt.figure()
     for i, setup in enumerate(setups):
@@ -53,6 +52,9 @@ def hrd_by_setup(database, wg, node_name):
         ax.errorbar(results["teff"][mask], results["logg"][mask],
             xerr=results["e_teff"][mask], yerr=results["e_logg"][mask],
             fmt=None, ecolor="#666666", alpha=0.5, zorder=-1)
+
+        ax.xaxis.set_major_locator(MaxNLocator(5))
+        ax.yaxis.set_major_locator(MaxNLocator(5))
 
         ax.set_xlabel(r"$T_{\rm eff}$ $({\rm K})$")
         ax.set_ylabel(r"$\log{g}$")
