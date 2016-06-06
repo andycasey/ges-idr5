@@ -43,7 +43,7 @@ def node_benchmark_performance(database, wg, node_name, sort_by="TEFF"):
 
 
     fig, axes = plt.subplots(3, figsize=(16.5, 7.5))
-    parameters = ("teff", "logg", "mh")
+    parameters = ("teff", "logg",)# "mh")
     fits_parameters = ("TEFF", "LOGG", "FEH")
     ylabels = {
         "teff": r"$\Delta{}T_{\rm eff}$ $({\rm K})$",
@@ -71,10 +71,6 @@ def node_benchmark_performance(database, wg, node_name, sort_by="TEFF"):
                     AND     TRIM(s.ges_fld) = %s""".format(parameter),
                 (node_id, benchmark["GES_FLD"].strip()))
 
-            if parameter == "feh":
-                raise a
-
-
             if results is None:
                 diff.append([])
 
@@ -88,6 +84,8 @@ def node_benchmark_performance(database, wg, node_name, sort_by="TEFF"):
 
                 if np.any(np.isfinite(data)):
                     diff.append(data[np.isfinite(data)])
+                else:
+                    diff.append([])
         
         # Show box-and-whisker plot.
         bp = ax.boxplot(diff, widths=width, patch_artist=True)
@@ -121,4 +119,5 @@ def node_benchmark_performance(database, wg, node_name, sort_by="TEFF"):
         plt.setp(bp["boxes"], color="k", alpha=0.5, linewidth=1)
 
     fig.tight_layout()
+
     return fig
