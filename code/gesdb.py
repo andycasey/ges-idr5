@@ -2,6 +2,7 @@
 """ A specialized database class for Gaia-ESO Survey data releases. """
 
 import logging
+import numpy as np
 from astropy.io import fits
 
 import utils
@@ -257,6 +258,38 @@ class GESDatabase(Database):
         self.connection.commit()
 
         return N
+
+
+
+    def ingest_magrini_photometric_temperatures(self, filename, extension=-1):
+        """
+        Ingest a FITS table containing CNAMEs and photometric temperatures.
+
+        :param filename:
+            A FITS table.
+
+        :param extension: [optional]
+            The HDU extension that contains the photometric temperatures.
+        """
+
+        image = fits.open(filename)
+        data = image[extension].data
+
+        # The columns might be different, but in general if we lowerize them all
+        # then we are looking for: 
+        # ('CNAME_2', 'GES_FLD', 'teffjk', 'jk', 'FILENAME')
+        cname_col, teff_col = (data.dtype.names[0], "teffjk")
+
+        # Update the value in the spectra table, unless it already exists.    
+        N = 0
+        for row in data:
+            result = self.execute(
+                """ UPDATE spectra
+                    SET teff_irfm = %s 
+                    WHERE   cname = %s AND
+                            teff_irfm = 'NaN'""",
+                        (float(row[teff_col]), row[cname_col], ))
+        return True
 
 
 class UnknownNodeError(BaseException):

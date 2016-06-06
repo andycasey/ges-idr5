@@ -18,5 +18,7 @@ def parse_node_filename(filename):
     # GES_iDR5_WG10_NodeTemplate_QC_15052016
     _ = os.path.basename(filename).split("_")
     wg, node_name = _[2:4]
+    if node_name.lower().endswith(".fits"):
+        node_name = node_name[:-5]
     wg = wg_as_int(wg)
     return (wg, node_name)
