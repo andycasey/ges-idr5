@@ -108,7 +108,6 @@ def stellar_parameter_summary(database, wg=None):
 
 
 
-
 def tech_flags(database, wg, node_name, column="TECH"):
     """
     Produce a summary table outlining the number of times certain flags were
@@ -132,13 +131,12 @@ def tech_flags(database, wg, node_name, column="TECH"):
 
     flags = database.retrieve_table(
         """SELECT {} FROM results WHERE node_id = %s""".format(column),
-        (node_id, ))[column]
+        (node_id, ))
 
-    counts = Counter("|".join(flags).split("|"))
-    ordered_counts = sorted(counts.iteritems(), key=lambda (k, v): v)
+    if flags is None: return None
 
-    output = "FLAG & N \\ \n"
-    for flag, count in ordered_counts.items():
-        output += "{0} & {1} \\ \n".format(flag, count)
-
-    return output
+    counts = Counter([each.strip() \
+        for each in "|".join(flags["tech"]).split("|") if each.strip()])
+    rows = sorted(counts.iteritems(), key=lambda (k, v): v)[::-1]
+    
+    return Table(rows=rows, names=("{} FLAG".format(column.upper()), "N"))

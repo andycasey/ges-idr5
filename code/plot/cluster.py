@@ -16,6 +16,7 @@ def param_vs_param(database, wg, node_name, ges_fld, reference_parameter,
     vel_range=(-1000, 1000)):
     """
     Show parameters vs parameters for stars in a cluster.
+    
     :param database:
         A database for transactions.
 
