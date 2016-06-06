@@ -2,7 +2,7 @@
 
 
 import yaml
-from code import GESDatabase
+from code import (GESDatabase, plot, summary)
 
 # Create a database object.
 db_filename = "code/db.yaml"
@@ -11,35 +11,37 @@ with open(db_filename, "r") as fp:
 database = GESDatabase(**credentials)
 
 
-from code import plot
 
-#fig = plot.compare_nodes_within_wg(database, 11, "teff")
-#fig = plot.compare_to_photometric_teff(database, 11, "Bologna")
+# Node-to-node comparisons within a WG.
 
-#fig = plot.compare_to_previous_dr(database, 11, "Bologna", "teff")
+#fig = plot.compare_nodes_within_wg(database, 11, "logg")
 
-#fig = plot.hrd_by_setup(database, 11, "Bologna")
 
-fig = plot.node_benchmark_performance(database, 11, "Bologna")
 
-raise a
+#fig = plot.compare_to_photometric_teff(database, 11, "EPINARBO")
 
-fig = plot.hrd(database, 11, "Bologna")
 
-fig_sun = plot.hrd(database, 11, "Bologna", mark=(5777, 4.4),
-    where="CNAME = 'ssssssss-sssssss'")
+#fig = plot.compare_to_previous_dr(database, 11, "Vilnius", "teff")
 
-from code import summary
+#fig = plot.hrd_by_setup(database, 11, "Vilnius")
 
-bar = summary.stellar_parameter_range(database)
 
-foo = plot.param_vs_param(database, 11, "Bologna", "NGC6705", "xi")
-raise a
+#fig = plot.node_benchmark_performance(database, 11, "Vilnius")
 
-foo = plot.cluster(database, 11, "Bologna", "NGC6705",
-    isochrone_filename="isochrones/NGC6705_Parsec_0.3Gyr_Z0.018.dat")
 
-raise a
+#fig = plot.hrd(database, 11, "EPINARBO")
+
+
+#fig_sun = plot.hrd(database, 11, "CAUP", mark=(5777, 4.4),
+#    where="CNAME = 'ssssssss-sssssss'")
+
+
+#bar = summary.stellar_parameter_range(database)
+#foo = plot.param_vs_param(database, 11, "EPINARBO", "NGC6705", "xi")
+
+#foo = plot.cluster(database, 11, "EPINARBO", "NGC6705",
+#    isochrone_filename="isochrones/NGC6705_Parsec_0.3Gyr_Z0.018.dat")
+
 fig = plot.stellar_parameter_histograms(database, 11, "Lumba")
 
 
@@ -48,3 +50,5 @@ fig = plot.stellar_parameter_error_histograms(database, 11, "EPINARBO")
 
 
 foo = summary.stellar_parameter_summary(database)
+
+raise a

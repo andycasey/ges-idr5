@@ -45,7 +45,8 @@ def param_vs_param(database, wg, node_name, ges_fld, reference_parameter,
     labels = {
         "teff": r"$T_{\rm eff}$ $({\rm K})$",
         "logg": r"$\log{g}$",
-        "mh":   r"$[{\rm Fe}/{\rm H}]$",
+        "feh":   r"$[{\rm Fe}/{\rm H}]$",
+        "mh":   r"$[{\rm M}/{\rm H}]$",
         "xi":   r"$\xi$ $({\rm km}$ ${\rm s}^{-1})$"
     }
 
@@ -56,7 +57,7 @@ def param_vs_param(database, wg, node_name, ges_fld, reference_parameter,
     results = database.retrieve_table(
         """ SELECT  DISTINCT ON (r.cname)
                     r.cname, r.node_id, r.setup, s.filename, s.vel, s.e_vel, 
-                    teff, e_teff, logg, e_logg, mh, e_mh, xi, e_xi
+                    teff, e_teff, logg, e_logg, feh, e_feh, mh, e_mh, xi, e_xi
             FROM    results r, spectra s 
             WHERE   r.cname = s.cname
                 AND TRIM(s.ges_fld) = %s
@@ -65,8 +66,14 @@ def param_vs_param(database, wg, node_name, ges_fld, reference_parameter,
                 AND node_id = %s""",
                 (ges_fld, min(vel_range), max(vel_range), node_id))
 
+    if reference_parameter.lower() == "mh":
+        reference_parameter = utils.mh_or_feh(results)
+
     fig, axes = plt.subplots(3, 1)
     for i, (ax, parameter) in enumerate(zip(axes, parameters)):
+
+        if parameter == "mh":
+            parameter = utils.mh_or_feh(results)
 
         ax.scatter(results[reference_parameter], results[parameter],
             facecolor="#666666", zorder=1)
@@ -120,7 +127,7 @@ def cluster(database, wg, node_name, ges_fld, vel_range=(-1000, 1000),
     results = database.retrieve_table(
         """ SELECT  DISTINCT ON (r.cname)
                     r.cname, r.node_id, r.setup, s.filename, s.vel, s.e_vel, 
-                    r.teff, r.e_teff, r.logg, r.e_logg, r.mh, r.e_mh
+                    r.teff, r.e_teff, r.logg, r.e_logg, r.feh, r.e_feh, r.mh, r.e_mh
             FROM    results r, spectra s 
             WHERE   r.cname = s.cname
                 AND TRIM(s.ges_fld) = %s
@@ -137,9 +144,10 @@ def cluster(database, wg, node_name, ges_fld, vel_range=(-1000, 1000),
     ax_hrd = plt.subplot(gs[1])
     ax_diff = plt.subplot(gs[2])
 
+    mh_col = utils.mh_or_feh(results)
 
     # Draw HRD, distinguishing markers by setup.
-    scat = ax_hrd.scatter(results["teff"], results["logg"], c=results["mh"],
+    scat = ax_hrd.scatter(results["teff"], results["logg"], c=results[mh_col],
         label=None)
     ax_hrd.errorbar(results["teff"], results["logg"],
         xerr=results["e_teff"], yerr=results["e_logg"],
@@ -158,10 +166,13 @@ def cluster(database, wg, node_name, ges_fld, vel_range=(-1000, 1000),
         x = results["teff"]
         y = []
         for i in range(len(x)):
-            index = np.argmin(np.abs(results["teff"][i] - isochrone["teff"]))
+            distance = np.sqrt((results["teff"][i] - isochrone["teff"])**2 \
+                + (1000*(results["logg"][i] - isochrone["logg"]))**2)
+
+            index = np.argmin(distance)
             y.append(results["logg"][i] - isochrone["logg"][index])
 
-        ax_diff.scatter(x, y, c=results["mh"])
+        ax_diff.scatter(x, y, c=results[mh_col])
         ax_diff.errorbar(x, y, xerr=results["e_teff"], yerr=results["e_logg"],
             fmt=None, ecolor="k", alpha=0.5, zorder=-1)
 
@@ -170,6 +181,7 @@ def cluster(database, wg, node_name, ges_fld, vel_range=(-1000, 1000),
         ax_diff.set_xlabel(r"$T_{\rm eff}$ $({\rm K})$")
         ax_diff.set_ylabel(r"$\Delta\log{g}$")
         ax_diff.set_xlim(ax_hrd.get_xlim()[::-1])
+        ax_diff.set_ylim(ax_diff.get_ylim()[::-1])
         ax_diff.xaxis.set_major_locator(MaxNLocator(5))
         ax_diff.yaxis.set_major_locator(MaxNLocator(5))
         ax_hrd.set_xticklabels([])

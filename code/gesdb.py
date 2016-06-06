@@ -163,8 +163,8 @@ class GESDatabase(Database):
 
         default_row = {"node_id": node_id}
         columns = ("node_id", "cname", "filename", "setup",
-            "teff", "e_teff", "logg", "e_logg", "mh", "e_mh", "xi", "e_xi",
-            "peculi", "remark", "tech")
+            "teff", "e_teff", "logg", "e_logg", "mh", "e_mh", "feh", "e_feh",
+            "xi", "e_xi", "peculi", "remark", "tech")
 
         fits_format_adapters = {
             "teff": float,
@@ -173,6 +173,8 @@ class GESDatabase(Database):
             "e_logg": float,
             "mh": float,
             "e_mh": float,
+            "feh": float,
+            "e_feh": float,
             "xi": float,
             "e_xi": float,
         }

@@ -17,6 +17,7 @@ from astropy.io import fits
 
 from code import GESDatabase
 
+raise AreYouSureError
 
 db_filename = "code/db.yaml"
 nodes_filename = "nodes.yaml"

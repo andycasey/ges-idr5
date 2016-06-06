@@ -67,7 +67,16 @@ def compare_to_previous_dr(database, wg, node_name, parameter):
     ax_main.scatter(x, y, facecolor="#666666")
     ax_main.errorbar(x, y, xerr=xerr, yerr=yerr,
         fmt=None, ecolor="#666666", alpha=0.5, zorder=-1)
-    limits = ax_main.get_xlim()
+
+    # Propagate nans.
+    _ = x * y
+    limits = [
+        np.nanmin(np.hstack([_/x, _/y]).flatten()),
+        np.nanmax(np.hstack([_/x, _/y]).flatten())
+    ]
+    _ = np.ptp(limits)
+    limits = [limits[0] - 0.05 * _, limits[1] + 0.05 * _]
+
     ax_main.plot(limits, limits, linestyle=":", c="#666666", zorder=-100)
     ax_main.set_xlim(limits)
     ax_main.set_ylim(limits)
@@ -144,8 +153,8 @@ def compare_to_photometric_teff(database, wg, node_name):
     ax_diff.set_ylabel(r"$\Delta{}T_{\rm eff}$ $({\rm K})$")
     limit = np.abs(ax_diff.get_ylim()).max()
     ax_diff.set_ylim(-limit, +limit)
+    ax_diff.set_yticks([-limit, 0, +limit])
     ax_diff.axhline(0, linestyle=":", c="#666666", zorder=-100)
-    ax_diff.yaxis.set_major_locator(MaxNLocator(3))
 
     fig.tight_layout()
 
@@ -156,7 +165,8 @@ def compare_to_photometric_teff(database, wg, node_name):
 
 
 
-def compare_nodes_within_wg(database, wg, parameter, extent=None):
+def compare_nodes_within_wg(database, wg, parameter, extent=None,
+    show_one_to_one=True):
     """
     Show a corner plot comparing all of the nodes within a single working group.
 
@@ -171,6 +181,9 @@ def compare_nodes_within_wg(database, wg, parameter, extent=None):
 
     :param extent: [optional]
         The (lower, upper) limits to show in each axis.
+
+    :param show_one_to_one: [optional]
+        Show a dashed line marking the `y=x` relation.
     """
 
     wg = utils.wg_as_int(wg)
@@ -215,17 +228,17 @@ def compare_nodes_within_wg(database, wg, parameter, extent=None):
     labels = [nodes["name"][nodes["id"] == _][0].strip() for _ in node_ids]
 
     # How many nodes to plot?
-    K, N = data.shape[0] - 1, data.shape[0]
+    K = data.shape[0]
     assert K > 0, "Need more than one node to compare against."
 
     factor = 2.0           # size of one side of one panel
     lbdim = 0.5 * factor   # size of left/bottom margin
     trdim = 0.5 * factor   # size of top/right margin
     whspace = 0.15         # w/hspace size
-    plotdim = factor * K + factor * (K - 1.) * whspace
+    plotdim = factor * (K - 1.) + factor * (K - 2.) * whspace
     dim = lbdim + plotdim + trdim
 
-    fig, axes = plt.subplots(K, K, figsize=(dim, dim))
+    fig, axes = plt.subplots(K - 1, K - 1, figsize=(dim, dim))
     
     lb = lbdim / dim
     tr = (lbdim + plotdim) / dim
@@ -234,18 +247,16 @@ def compare_nodes_within_wg(database, wg, parameter, extent=None):
     
     # Match all of the nodes
     lim = [np.inf, -np.inf]
-    for i in range(K):
+    for i in range(1, K):
         for j in range(K):
-            if j == K: break
-            elif j > i:
+            if j >= i:
                 try:
-                    ax = axes[i, j]
+                    ax = axes[i-1, j]
                 except IndexError:
                     continue
                 ax.set_visible(False)
                 ax.set_frame_on(False)
                 continue
-            if 0 > i-1: continue
             if K > 1:
                 ax = axes[i-1, j]
             else:
@@ -267,6 +278,8 @@ def compare_nodes_within_wg(database, wg, parameter, extent=None):
                 ax.set_yticklabels([])
 
             if extent is not None:
+                if show_one_to_one:
+                    ax.plot(extent, extent, c="#666666", zorder=-100)
                 ax.set_xlim(extent)
                 ax.set_ylim(extent)
 
@@ -281,6 +294,9 @@ def compare_nodes_within_wg(database, wg, parameter, extent=None):
     if extent is None:
         for ax in np.array(axes).flatten():
             if ax.get_visible():
+                if show_one_to_one:
+                    ax.plot(lim, lim, c="#666666", zorder=-100)
+
                 ax.set_xlim(lim)
                 ax.set_ylim(lim)
 

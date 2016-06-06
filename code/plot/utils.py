@@ -39,3 +39,12 @@ def parse_isochrone(filename):
 def wg_as_int(wg):
     return int(str(wg).strip().lower().lstrip("wg"))
 
+
+
+
+def mh_or_feh(table):
+
+    feh = np.sum(np.isfinite(table["feh"]))
+    mh = np.sum(np.isfinite(table["mh"]))
+
+    return "feh" if feh > mh else "mh"

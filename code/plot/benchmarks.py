@@ -48,7 +48,8 @@ def node_benchmark_performance(database, wg, node_name, sort_by="TEFF"):
     ylabels = {
         "teff": r"$\Delta{}T_{\rm eff}$ $({\rm K})$",
         "logg": r"$\Delta\log{g}$",
-        "mh": r"$\Delta[{\rm Fe}/{\rm H}]$"
+        "mh": r"$\Delta[{\rm Fe}/{\rm H}]$",
+        "feh": r"$\Delta[{\rm Fe}/{\rm H}]$"
     }
     benchmarks.sort(sort_by)
     for i, (ax, parameter) in enumerate(zip(axes, parameters)):
@@ -63,17 +64,28 @@ def node_benchmark_performance(database, wg, node_name, sort_by="TEFF"):
 
             results = database.retrieve_table(
                 """ SELECT  DISTINCT ON (r.filename) 
-                            r.cname, ges_fld, {0}, e_{0}
+                            r.cname, ges_fld, feh, e_feh, {0}, e_{0}
                     FROM    results r, spectra s
                     WHERE   r.cname = s.cname
                     AND     r.node_id = %s
                     AND     TRIM(s.ges_fld) = %s""".format(parameter),
                 (node_id, benchmark["GES_FLD"].strip()))
+
+            if parameter == "feh":
+                raise a
+
+
             if results is None:
                 diff.append([])
 
             else:
-                data = results[parameter] - benchmark[fits_parameter]
+                if parameter == "mh":
+                    data = results[utils.mh_or_feh(results)]
+                else:
+                    data = results[parameter]
+
+                data -= benchmark[fits_parameter]
+
                 if np.any(np.isfinite(data)):
                     diff.append(data[np.isfinite(data)])
         

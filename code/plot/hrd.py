@@ -8,6 +8,9 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 from matplotlib import gridspec
 
+import utils
+
+
 def hrd_by_setup(database, wg, node_name):
     """
     Show Hertszprung-Russell Diagrams for stars in each unique setup.
@@ -26,7 +29,8 @@ def hrd_by_setup(database, wg, node_name):
 
     # Get results.
     results = database.retrieve_table(
-        """ SELECT cname, setup, teff, e_teff, logg, e_logg, mh, e_mh, xi, e_xi
+        """ SELECT  cname, setup, teff, e_teff, logg, e_logg, mh, e_mh, 
+                    feh, e_feh, xi, e_xi
             FROM results WHERE node_id = %s""", (node_id, ))
 
     setups = sorted(list(set(results["setup"])))
@@ -36,9 +40,11 @@ def hrd_by_setup(database, wg, node_name):
 
     if not np.all(np.isfinite(results["xi"])):
         # Don't show size-varying points.
-        s = None
+        s = 100 * np.ones(len(results))
     else:
         s = 100 * results["xi"]
+
+    mh_col = utils.mh_or_feh(results)
 
     fig = plt.figure()
     for i, setup in enumerate(setups):
@@ -46,8 +52,8 @@ def hrd_by_setup(database, wg, node_name):
 
         mask = (results["setup"] == setup)
         scat = ax.scatter(results["teff"][mask], results["logg"][mask],
-            facecolor=results["mh"][mask], s=s[mask],
-            vmin=np.nanmin(results["mh"]), vmax=np.nanmax(results["mh"]),
+            facecolor=results[mh_col][mask], edgecolor="k", s=100,
+            vmin=np.nanmin(results[mh_col]), vmax=np.nanmax(results[mh_col]),
             cmap="plasma")
         ax.errorbar(results["teff"][mask], results["logg"][mask],
             xerr=results["e_teff"][mask], yerr=results["e_logg"][mask],
@@ -59,6 +65,9 @@ def hrd_by_setup(database, wg, node_name):
         ax.set_xlabel(r"$T_{\rm eff}$ $({\rm K})$")
         ax.set_ylabel(r"$\log{g}$")
         ax.set_title(setup)
+
+        ax.set_xlim(ax.get_xlim()[::-1])
+        ax.set_ylim(ax.get_ylim()[::-1])
 
     cax = fig.add_subplot(gs[-1])
     cb = fig.colorbar(cax=cax, mappable=scat)
@@ -106,8 +115,13 @@ def hrd(database, wg, node_name, where=None, isochrones=None,
 
     # Collect the results for this node.
     results = database.retrieve_table(
-        """ SELECT node_id, cname, teff, e_teff, logg, e_logg, mh, e_mh, xi, e_xi
+        """ SELECT  node_id, cname, teff, e_teff, logg, e_logg, 
+                    feh, e_feh, mh, e_mh, xi, e_xi
             FROM results WHERE node_id = %s {}""".format(where_str), (node_id, ))
+
+    if results is None:
+        raise ValueError("no results found for {}/{}".format(wg, node_name))
+
     ok = np.isfinite(
         results["teff"].astype(float) * results["logg"].astype(float))
 
@@ -134,8 +148,9 @@ def hrd(database, wg, node_name, where=None, isochrones=None,
         xerr=results["e_teff"][ok], yerr=results["e_logg"][ok],
         fmt=None, ecolor="#666666", zorder=-1, alpha=0.5)
 
+    mh_col = utils.mh_or_feh(results)
     scat = ax.scatter(results["teff"][ok], results["logg"][ok],
-        c=results["mh"][ok], s=s, cmap="plasma", zorder=2)
+        c=results[mh_col][ok], s=s, cmap="plasma", zorder=2)
 
     cbar = plt.colorbar(scat)
     cbar.set_label(r"$[{\rm Fe}/{\rm H}]$")
@@ -185,6 +200,16 @@ def histograms(database, wg, node_name, parameters, labels=None, where=None,
 
     node_id = database.retrieve_node_id(wg, node_name)
     where_str = "" if where is None else " AND {}".format(where)
+    parameters = list(parameters)
+        
+
+    if "mh" in parameters:
+        # a HACK
+        parameters.append("feh")
+
+    if "e_mh" in parameters:
+        parameters.append("e_feh")
+
 
     # Collect the results for this node.
     labels = labels or parameters
@@ -192,10 +217,16 @@ def histograms(database, wg, node_name, parameters, labels=None, where=None,
         """SELECT {} FROM results WHERE node_id = %s {}""".format(
             ", ".join(parameters), where_str), (node_id, ))
 
-    N = int(np.ceil(np.sqrt(len(parameters))))
+    N = int(np.ceil(np.sqrt(len(labels))))
     fig, axes = plt.subplots(N, N)
     axes = np.array(axes).flatten()
     for i, (ax, parameter, label) in enumerate(zip(axes, parameters, labels)):
+
+        if parameter == "mh":
+            parameter = utils.mh_or_feh(results)
+        elif parameter == "e_mh":
+            parameter = "e_{}".format(utils.mh_or_feh(results))
+
         ok = np.isfinite(results[parameter])
         ax.hist(results[parameter][ok], bins=50, facecolor="#666666")
         ax.text(0.05, 0.95, r"${}$".format(ok.sum()),
