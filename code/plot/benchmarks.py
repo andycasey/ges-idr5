@@ -43,7 +43,7 @@ def node_benchmark_performance(database, wg, node_name, sort_by="TEFF"):
 
 
     fig, axes = plt.subplots(3, figsize=(16.5, 7.5))
-    parameters = ("teff", "logg",)# "mh")
+    parameters = ("teff", "logg", "mh")
     fits_parameters = ("TEFF", "LOGG", "FEH")
     ylabels = {
         "teff": r"$\Delta{}T_{\rm eff}$ $({\rm K})$",

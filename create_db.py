@@ -17,7 +17,6 @@ from astropy.io import fits
 
 from code import GESDatabase
 
-raise AreYouSureError
 
 db_filename = "code/db.yaml"
 nodes_filename = "nodes.yaml"
@@ -33,6 +32,8 @@ with open(db_filename, "r") as fp:
 logger = logging.getLogger("ges")
 logger.info("Connected to database.")
 
+
+raise AreYouSureError
 
 # Create the tables.
 cursor = connection.cursor()

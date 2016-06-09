@@ -1,6 +1,6 @@
 
 
-
+import logging
 import numpy as np
 import os
 import matplotlib.pyplot as plt
@@ -11,9 +11,10 @@ import utils
 
 __all__ = ["cluster", "param_vs_param"]
 
+logger = logging.getLogger("ges.idr5.qc")
 
 def param_vs_param(database, wg, node_name, ges_fld, reference_parameter,
-    vel_range=(-1000, 1000)):
+    vel_range=None):
     """
     Show parameters vs parameters for stars in a cluster.
     
@@ -36,6 +37,8 @@ def param_vs_param(database, wg, node_name, ges_fld, reference_parameter,
         The (lower, upper) range of velocities (VEL) to select as bonafide
         cluster members.
     """
+
+    vel_range = vel_range or (-1000, 1000)
 
     parameters = ["teff", "logg", "mh", "xi"]
     reference_parameter = reference_parameter.lower()
@@ -73,6 +76,9 @@ def param_vs_param(database, wg, node_name, ges_fld, reference_parameter,
     fig, axes = plt.subplots(3, 1)
     for i, (ax, parameter) in enumerate(zip(axes, parameters)):
 
+        if ax.is_first_row():
+            ax.set_title("({0:.1f}, {1:.1f})".format(*vel_range))
+
         if parameter == "mh":
             parameter = utils.mh_or_feh(results)
 
@@ -94,8 +100,8 @@ def param_vs_param(database, wg, node_name, ges_fld, reference_parameter,
 
 
 
-def cluster(database, wg, node_name, ges_fld, vel_range=(-1000, 1000),
-    isochrone_filename=None):
+def cluster(database, wg, node_name, ges_fld, vel_range=None,
+    isochrone_filename=None, limit_to_isochrone_range=False):
     """
     Show a Hertzsprung-Russell diagram for cluster stars, with isochrones
     optionally shown.
@@ -118,7 +124,11 @@ def cluster(database, wg, node_name, ges_fld, vel_range=(-1000, 1000),
 
     :param isochrone_filename: [optional]
         The path of an isochrone_filename file to show for this cluster.
+
+    :param limit_to_isochrone_range: [optional]
     """
+
+    vel_range = vel_range or (-1000, 1000)
 
 
     # Get the data.
@@ -137,6 +147,11 @@ def cluster(database, wg, node_name, ges_fld, vel_range=(-1000, 1000),
                 AND node_id = %s""",
                 (ges_fld, min(vel_range), max(vel_range), node_id))
 
+
+    if results is None:
+        logger.warn("No cluster data on {} from {}/{}".format(ges_fld,
+            wg, node_name))
+        return None
 
     # Draw velocity/metallicity. Highlight members.
     gs = gridspec.GridSpec(3, 1, height_ratios=[1, 12, 4])
@@ -160,8 +175,15 @@ def cluster(database, wg, node_name, ges_fld, vel_range=(-1000, 1000),
         isochrone = utils.parse_isochrone(isochrone_filename)
 
         label, _ = os.path.splitext(os.path.basename(isochrone_filename))
+        label = "{0} ({1:.1f}, {2:.1f})".format(label, vel_range[0], vel_range[1])
         ax_hrd.plot(isochrone["teff"], isochrone["logg"],
             c="k", lw=2, zorder=-1, label=label)
+
+        if limit_to_isochrone_range:
+            xlimits = (7000, 3000)
+            ylimits = (5.5, 0)
+            #xlimits = ax_hrd.get_xlim()[::-1]
+            #ylimits = ax_hrd.get_ylim()[::-1]
 
         # Draw different wrt to isochrone.
         x = results["teff"]
@@ -181,7 +203,13 @@ def cluster(database, wg, node_name, ges_fld, vel_range=(-1000, 1000),
 
         ax_diff.set_xlabel(r"$T_{\rm eff}$ $({\rm K})$")
         ax_diff.set_ylabel(r"$\Delta\log{g}$")
-        ax_diff.set_xlim(ax_hrd.get_xlim()[::-1])
+
+        if not limit_to_isochrone_range:
+            xlimits = ax_hrd.get_xlim()[::-1]
+            ylimits = ax_hrd.get_ylim()[::-1]
+
+        #ax_diff.set_xlim(ax_hrd.get_xlim()[::-1])
+        ax_diff.set_xlim(xlimits)
         ax_diff.set_ylim(ax_diff.get_ylim()[::-1])
         ax_diff.xaxis.set_major_locator(MaxNLocator(5))
         ax_diff.yaxis.set_major_locator(MaxNLocator(5))
@@ -198,8 +226,8 @@ def cluster(database, wg, node_name, ges_fld, vel_range=(-1000, 1000),
 
     ax_hrd.set_ylabel(r"$\log{g}$")
 
-    ax_hrd.set_xlim(ax_hrd.get_xlim()[::-1])
-    ax_hrd.set_ylim(ax_hrd.get_ylim()[::-1])
+    ax_hrd.set_xlim(xlimits)
+    ax_hrd.set_ylim(ylimits)
 
     cb = plt.colorbar(
         cax=plt.subplot(gs[0]), mappable=scat, orientation='horizontal')

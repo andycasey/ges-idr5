@@ -33,8 +33,26 @@ def hrd_by_setup(database, wg, node_name):
                     feh, e_feh, xi, e_xi
             FROM results WHERE node_id = %s""", (node_id, ))
 
+    if results is None:
+        return None
+
     setups = sorted(list(set(results["setup"])))
+    
+    remove_setups = []
+    for i, setup in enumerate(setups):
+
+        mask = (results["setup"] == setup)
+        ok = np.isfinite(results["teff"][mask] * results["logg"][mask])
+        if not np.any(ok):
+            remove_setups.append(setup)
+            continue
+
+    setups = list(set(setups).difference(remove_setups))
+
     N_setups = len(setups)
+
+    if N_setups == 0:
+        raise WTFError
 
     gs = gridspec.GridSpec(1, N_setups + 1, width_ratios=([12] * N_setups) + [1])
 
@@ -46,11 +64,13 @@ def hrd_by_setup(database, wg, node_name):
 
     mh_col = utils.mh_or_feh(results)
 
-    fig = plt.figure()
+    fig = plt.figure(figsize=(6 * N_setups, 6))
     for i, setup in enumerate(setups):
-        ax = fig.add_subplot(gs[i])
 
         mask = (results["setup"] == setup)
+
+        ax = fig.add_subplot(gs[i])
+
         scat = ax.scatter(results["teff"][mask], results["logg"][mask],
             facecolor=results[mh_col][mask], edgecolor="k", s=100,
             vmin=np.nanmin(results[mh_col]), vmax=np.nanmax(results[mh_col]),
@@ -64,7 +84,7 @@ def hrd_by_setup(database, wg, node_name):
 
         ax.set_xlabel(r"$T_{\rm eff}$ $({\rm K})$")
         ax.set_ylabel(r"$\log{g}$")
-        ax.set_title(setup)
+        ax.set_title(setup.strip())
 
         ax.set_xlim(ax.get_xlim()[::-1])
         ax.set_ylim(ax.get_ylim()[::-1])
@@ -72,6 +92,8 @@ def hrd_by_setup(database, wg, node_name):
     cax = fig.add_subplot(gs[-1])
     cb = fig.colorbar(cax=cax, mappable=scat)
     cb.set_label(r"$[{\rm Fe}/{\rm H}]$")
+
+    #fig.tight_layout()
 
     return fig
 
