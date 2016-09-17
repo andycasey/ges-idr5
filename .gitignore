@@ -1,3 +1,4 @@
 *.pyc
 *.fits
 db.yaml
+node-results/
