@@ -162,21 +162,58 @@ class GESDatabase(Database):
         data = image[extension].data
 
         default_row = {"node_id": node_id}
-        columns = ("node_id", "cname", "filename", "setup",
-            "teff", "e_teff", "logg", "e_logg", "mh", "e_mh", "feh", "e_feh",
-            "xi", "e_xi", "peculi", "remark", "tech")
+        columns = (
+            "node_id", "cname", "filename", "setup",
+            "vel", "e_vel", "vrot", "e_vrot",     
+            "teff", "e_teff", "nn_teff", "enn_teff", "nne_teff", "sys_err_teff",
+            "logg", "e_logg", "nn_logg", "enn_logg", "nne_logg", "sys_err_logg", "lim_logg",
+            "feh", "e_feh", "nn_feh", "enn_feh", "nne_feh", "sys_err_feh",
+            "xi", "e_xi", "nn_xi", "enn_xi", "nne_xi",
+            "mh", "e_mh", "nn_mh", "enn_mh", "nne_mh",
+            "alpha_fe", "e_alpha_fe", "nn_alpha_fe", "enn_alpha_fe", "nne_alpha_fe", 
+            "vrad", "e_vrad", "vsini", "e_vsini",
+            "peculi", "remark", "tech")
+
 
         fits_format_adapters = {
             "teff": float,
             "e_teff": float,
+            "nn_teff": int,
+            "enn_teff": float,
+            "nne_teff": float,
+            "sys_err_teff": float,
             "logg": float,
             "e_logg": float,
-            "mh": float,
-            "e_mh": float,
+            "nn_logg": int,
+            "enn_logg": float,
+            "nne_logg": float,
+            "sys_err_logg": float,
+            "lim_logg": int,
             "feh": float,
             "e_feh": float,
+            "nn_feh": int,
+            "enn_feh": float,
+            "nne_feh": float,
+            "sys_err_feh": float,
             "xi": float,
             "e_xi": float,
+            "nn_xi": int,
+            "enn_xi": float,
+            "nne_xi": float,
+            "mh": float,
+            "e_mh": float,
+            "nn_mh": int,
+            "enn_mh": float,
+            "nne_mh": float,
+            "alpha_fe": float,
+            "e_alpha_fe": float,
+            "nn_alpha_fe": int,
+            "enn_alpha_fe": float,
+            "nne_alpha_fe": float,
+            "vrad": float,
+            "e_vrad": float,
+            "vsini": float,
+            "e_vsini": float,
         }
 
 
