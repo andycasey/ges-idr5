@@ -176,6 +176,10 @@ class GESDatabase(Database):
 
 
         fits_format_adapters = {
+            "vel": float,
+            "e_vel": float,
+            "vrot": float,
+            "e_vrot": float,
             "teff": float,
             "e_teff": float,
             "nn_teff": int,
