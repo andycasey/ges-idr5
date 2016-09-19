@@ -28,13 +28,13 @@ database = GESDatabase(**credentials)
 
 for wg in (10, 11, 12, 13):
 
-    fig = plot.flags.heatmap(database, wg,
+    fig, = plot.flags.heatmap(database, wg,
         show_multiple_flags_per_node=True, group_by="node",
         use_cuthill_mckee=True)
     fig.savefig(
         "figures/wg{}/flags-heatmap-node.pdf".format(wg), dpi=300)
 
-    fig = plot.flags.heatmap(database, wg,
+    fig, = plot.flags.heatmap(database, wg,
         show_multiple_flags_per_node=True, group_by="node",
         use_cuthill_mckee=False)
     fig.savefig(
