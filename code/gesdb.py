@@ -4,6 +4,7 @@
 import logging
 import numpy as np
 from astropy.io import fits
+from astropy.table import Table
 
 import utils
 from db import Database
@@ -158,8 +159,7 @@ class GESDatabase(Database):
         node_id = self.retrieve_node_id(wg, node_name)
 
         # Start ingesting results.
-        image = fits.open(filename)
-        data = image[extension].data
+        data = Table.read(filename, hdu=extension)
 
         default_row = {"node_id": node_id}
         columns = (
@@ -173,7 +173,6 @@ class GESDatabase(Database):
             "alpha_fe", "e_alpha_fe", "nn_alpha_fe", "enn_alpha_fe", "nne_alpha_fe", 
             "vrad", "e_vrad", "vsini", "e_vsini",
             "peculi", "remark", "tech")
-
 
         fits_format_adapters = {
             "vel": float,
@@ -220,6 +219,12 @@ class GESDatabase(Database):
             "e_vsini": float,
         }
 
+        # Update formats, as necessary.
+        tmp_key_format = "{}_NEW_DTYPE"
+        for key, new_dtype in fits_format_adapters.items():
+            data[tmp_key_format.format(key.upper())] = np.array(data[key.upper()], dtype=new_dtype)
+            del data[key.upper()]
+            data.rename_column(tmp_key_format.format(key.upper()), key.upper())
 
         N = len(data)
         for i, row in enumerate(data):
@@ -227,12 +232,7 @@ class GESDatabase(Database):
                 wg, node_name))
             row_data = {}
             row_data.update(default_row)
-            for column in columns[1:]:
-                value = row[column]
-                f = fits_format_adapters.get(column, None)
-                if f is not None:
-                    value = f(value)
-                row_data[column] = value
+            row_data.update(dict(zip(columns[1:], [row[c.upper()] for c in columns[1:]])))
 
             self.execute(
                 "INSERT INTO results ({}) VALUES ({})".format(
