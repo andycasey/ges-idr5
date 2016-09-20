@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 """
-Create database structure for iDR5 quality control (QC) phase.
+Create database for the fifth internal data release of the Gaia-ESO Survey.
 """
 
 import logging
