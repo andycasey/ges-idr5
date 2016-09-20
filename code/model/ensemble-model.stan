@@ -1,48 +1,47 @@
 
 // Simple ensemble model with multiple measurements
-// Dreamt up by Sergey Koposov, shittily extended upon by Andy Casey
 
 data {
-    int<lower=1> N_nodes;
-    int<lower=1> N_benchmarks;
+    int<lower=1> N_estimators;
+    int<lower=1> N_calibrators;
 
     // Non-spectroscopic measurements
-    vector[N_benchmarks] non_spec_measurement;
-    vector<lower=0>[N_benchmarks] non_spec_sigma;
+    vector[N_calibrators] calibrator_mu;
+    vector<lower=0>[N_calibrators] calibrator_sigma;
 
     // Spectroscopic measurements (allow for multiple measurements of the same
     // star)
-    vector[N_nodes] averaged_node_measurement[N_benchmarks];
-    vector[N_nodes] number_of_node_measurements[N_benchmarks];
+    vector[N_estimators] mean_estimate[N_calibrators];
+    vector[N_estimators] N_estimates_per_estimator[N_calibrators];
 
-    // Additive variance is for when no benchmark measurement are finite 
-    vector<lower=0>[N_nodes] averaged_additive_variance[N_benchmarks];
+    // Additive variance is for when no calibrator measurement are finite 
+    vector<lower=0>[N_estimators] additive_variance[N_calibrators];
 }
 
 parameters {
-    // Uncertainty in the data
+    // Intrinsic uncertainty in the model
     real<lower=0> var_intrinsic;
 
-    // Uncertainty in each node
-    vector<lower=0>[N_nodes] var_node_sys;
-    vector<lower=0>[N_nodes] var_node_rand;
+    // Uncertainty from each estimator (node), both random and systematic
+    vector<lower=0>[N_estimators] estimator_sys_var;
+    vector<lower=0>[N_estimators] estimator_rand_var;
 
     // God's word
-    vector[N_benchmarks] truths;
+    vector[N_calibrators] truths;
 }
 
 transformed parameters {
-    matrix[N_nodes, N_nodes] covariance[N_benchmarks];
-    for (i in 1:N_benchmarks)
-        covariance[i] <- rep_matrix(var_intrinsic, N_nodes, N_nodes)
-             + diag_matrix(var_node_sys)
-             + diag_matrix(var_node_rand ./ number_of_node_measurements[i]) # element-wise division
-             + diag_matrix(averaged_additive_variance[i]);
+    matrix[N_estimators, N_estimators] covariance[N_calibrators];
+    for (i in 1:N_calibrators)
+        covariance[i] <- rep_matrix(var_intrinsic, N_estimators, N_estimators)
+             + diag_matrix(estimator_sys_var)
+             + diag_matrix(estimator_rand_var ./ N_estimates_per_estimator[i])
+             + diag_matrix(additive_variance[i]);
 }
 
 model {
-    non_spec_measurement ~ normal(truths, non_spec_sigma); 
-    for (i in 1:N_benchmarks) 
-        averaged_node_measurement[i] ~ multi_normal(
-            rep_vector(truths[i], N_nodes), covariance[i]);
+    calibrator_mu ~ normal(truths, calibrator_sigma); 
+    for (i in 1:N_calibrators) 
+        mean_estimate[i] ~ multi_normal(
+            rep_vector(truths[i], N_estimators), covariance[i]);
 }

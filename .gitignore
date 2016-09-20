@@ -3,3 +3,5 @@
 db.yaml
 node-results/
 figures/
+
+code/model/*.compiled
