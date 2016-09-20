@@ -1,6 +1,6 @@
 
 """
-Classes to deal with homogenisation models written in STAN.
+Classes to deal with homogenisation models written in Stan.
 """
 
 import cPickle as pickle
@@ -75,7 +75,8 @@ class BaseEnsembleModel(object):
                 continue
 
             else:
-                logger.info("Using pre-compiled model from {}".format(compiled_path))
+                logger.info(
+                    "Using pre-compiled model from {}".format(compiled_path))
                 break
 
         else:
@@ -102,6 +103,7 @@ class BaseEnsembleModel(object):
         kwds = {}
         kwds.update(kwargs)
 
+        # Allow for a keyword that will disable any verification checks.
         if not kwds.pop("validate", True):
             return kwds
 
@@ -111,8 +113,10 @@ class BaseEnsembleModel(object):
 
             init, chains = (kwds["init"], kwds["chains"])
             logger.info(
-                "Re-specifying initial values to be list of dictionaries, "
-                "allowing one dictionary per chain ({})".format(chains))
+                "Re-specifying initial values to be list of dictionaries, "\
+                "allowing one dictionary per chain ({}). "\
+                "Specify validate=False to disable this behaviour"\
+                .format(chains))
             
             kwds["init"] = [init] * chains
 
@@ -135,7 +139,6 @@ class BaseEnsembleModel(object):
             Overwrite the compiled model path if it already exists.
         """
 
-        # We can haz model?
         model = self._load_model(recompile, overwrite)
         kwds = self._validate_stan_inputs(data=data, **kwargs)
         return model.optimizing(**kwds)
@@ -171,11 +174,9 @@ class BaseEnsembleModel(object):
             Overwrite the compiled model path if it already exists.
         """
 
-
-        # We can haz model?
         model = self._load_model(recompile, overwrite)
-        kwds = self._validate_stan_inputs(data=data, chains=chains, iter=iter,
-            warmup=warmup, **kwargs)
+        kwds = self._validate_stan_inputs(
+            data=data, chains=chains, iter=iter, warmup=warmup, **kwargs)
 
         return model.sampling(**kwds)
 
