@@ -2,3 +2,4 @@
 *.fits
 db.yaml
 node-results/
+figures/
