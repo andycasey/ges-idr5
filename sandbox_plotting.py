@@ -34,12 +34,76 @@ parameters = ("teff", "logg", "mh", "xi")
 isochrones = glob("isochrones/*.dat")
 
 
+
+
+
 # Create node-level folders.
 nodes = database.retrieve_table("SELECT id, wg, TRIM(name) as name FROM nodes")
 for node in nodes:
     folder = "figures/qc/wg{}/{}".format(node["wg"], node["name"])
     if not os.path.exists(folder):
         os.mkdir(folder)
+
+
+
+for node in nodes:
+
+    print("Plotting benchmark performance for {}".format(node))
+    try:
+        fig = plot.node_benchmark_performance(database, node["wg"], node["name"],
+            ylims=dict(teff=500, logg=0.5, mh=0.5))
+
+    except:
+        raise
+        if debug: raise
+        logger.exception(
+            "Could not create node_benchmark_performance figure for {}/{}:"\
+            .format(node["wg"], node["name"]))
+        continue
+
+    else:
+        if fig is not None:
+            basename = "figures/qc/wg{wg}/{name}/benchmarks-zoom".format(
+                wg=node["wg"], name=node["name"])
+
+            fig.savefig("{}.pdf".format(basename))
+            fig.savefig("{}.png".format(basename))
+
+        else:
+            logger.warn("No benchmark information for {}/{}".format(
+                node["wg"], node["name"]))
+
+plt.close("all")
+
+
+
+for node in nodes:
+
+    print("Plotting benchmark performance for {}".format(node))
+    try:
+        fig = plot.node_benchmark_performance(database, node["wg"], node["name"])
+
+    except:
+        if debug: raise
+        logger.exception(
+            "Could not create node_benchmark_performance figure for {}/{}:"\
+            .format(node["wg"], node["name"]))
+        continue
+
+    else:
+        if fig is not None:
+            basename = "figures/qc/wg{wg}/{name}/benchmarks".format(
+                wg=node["wg"], name=node["name"])
+
+            fig.savefig("{}.pdf".format(basename))
+            fig.savefig("{}.png".format(basename))
+
+        else:
+            logger.warn("No benchmark information for {}/{}".format(
+                node["wg"], node["name"]))
+
+plt.close("all")
+
 
 # Plot against clusters.
 cluster_velocities = Table.read("fits-templates/oc_gc_radial_vel.dat", format="ascii")
@@ -172,32 +236,6 @@ for node in nodes:
 
 plt.close("all")
 
-
-
-
-
-# Plot the performance on the benchmarks.
-for node in nodes:
-
-    print("Plotting benchmark performance for {}".format(node))
-    try:
-        fig = plot.node_benchmark_performance(database, node["wg"], node["name"])
-
-    except:
-        if debug: raise
-        logger.exception(
-            "Could not create node_benchmark_performance figure for {}/{}:"\
-            .format(node["wg"], node["name"]))
-        continue
-
-    else:
-        basename = "figures/qc/wg{wg}/{name}/benchmarks".format(
-            wg=node["wg"], name=node["name"])
-
-        fig.savefig("{}.pdf".format(basename))
-        fig.savefig("{}.png".format(basename))
-
-plt.close("all")
 
 
 

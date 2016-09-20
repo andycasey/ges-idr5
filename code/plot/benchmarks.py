@@ -12,10 +12,11 @@ import utils
 
 __all__ = ["node_benchmark_performance"]
 
-benchmark_filename = "fits-templates/benchmarks/GES_iDR5_FGKMCoolWarm_Benchmarks_AcceptedParams_11052016.fits"
+benchmark_filename = "fits-templates/benchmarks/GES_iDR5_FGKMCoolWarm_Benchmarks_AcceptedParams_01082016.fits"
 
 
-def node_benchmark_performance(database, wg, node_name, sort_by="TEFF"):
+def node_benchmark_performance(database, wg, node_name, sort_by="TEFF",
+    ylims=None):
     """
     Show a box-and-whisker plot for the benchmark parameters reported by a given
     node.
@@ -29,6 +30,9 @@ def node_benchmark_performance(database, wg, node_name, sort_by="TEFF"):
     :param node_name:
         The node name.
 
+    :param ylims: [optional]
+        A dictionary containing the absolute y-limit for each label (teff, logg,
+        mh).
     """
 
     width = 0.45
@@ -52,6 +56,7 @@ def node_benchmark_performance(database, wg, node_name, sort_by="TEFF"):
         "feh": r"$\Delta[{\rm Fe}/{\rm H}]$"
     }
     benchmarks.sort(sort_by)
+    N = 0
     for i, (ax, parameter) in enumerate(zip(axes, parameters)):
 
         ax.axhline(0, c="k", zorder=-1)
@@ -88,8 +93,12 @@ def node_benchmark_performance(database, wg, node_name, sort_by="TEFF"):
                     diff.append([])
         
         # Show box-and-whisker plot.
+        N += np.hstack(diff).size
         bp = ax.boxplot(diff, widths=width, patch_artist=True)
         ax.set_ylabel(ylabels.get(parameter))
+        ylim = ylims.get(parameter, None)
+        if ylim is not None:
+            ax.set_ylim(-ylim, ylim)
 
         # Put numbers.
         if ax.is_last_row():
@@ -98,7 +107,18 @@ def node_benchmark_performance(database, wg, node_name, sort_by="TEFF"):
                 ax.text(j + 1, y_loc, r"${}$".format(len(d)), color="k",
                     horizontalalignment="center")
 
-            ax.set_xticklabels([each.strip() for each in benchmarks["GES_FLD"]])
+            # Show how many are outside of each frame.
+            if ylim:
+                y_loc = ax.get_ylim()[1] - 0.05 * np.ptp(ax.get_ylim())
+                for j, d in enumerate(diff):
+                    N_bad = np.sum(np.abs(d) > ylim)
+                    if N_bad == 0: continue
+                    ax.text(j + 1, y_loc, r"${}$".format(N_bad), color="r",
+                        horizontalalignment="center",
+                        verticalalignment="top")
+
+            ax.set_xticklabels(
+                [each.strip().replace("_", "-") for each in benchmarks["GES_FLD"]])
             [l.set_rotation(90) for l in ax.get_xticklabels()]
         else:
             ax.set_xticklabels([])
@@ -119,5 +139,5 @@ def node_benchmark_performance(database, wg, node_name, sort_by="TEFF"):
         plt.setp(bp["boxes"], color="k", alpha=0.5, linewidth=1)
 
     fig.tight_layout()
-
-    return fig
+    
+    return fig if N > 0 else None
