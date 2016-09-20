@@ -70,6 +70,9 @@ def param_vs_param(database, wg, node_name, ges_fld, reference_parameter,
                 AND node_id = %s""",
                 (ges_fld, min(vel_range), max(vel_range), node_id))
 
+    if results is None:
+        return None
+
     if reference_parameter.lower() == "mh":
         reference_parameter = utils.mh_or_feh(results)
 
@@ -164,10 +167,10 @@ def cluster(database, wg, node_name, ges_fld, vel_range=None,
 
     # Draw HRD, distinguishing markers by setup.
     scat = ax_hrd.scatter(results["teff"], results["logg"], c=results[mh_col],
-        label=None)
+        label=None, cmap="viridis")
     ax_hrd.errorbar(results["teff"], results["logg"],
         xerr=results["e_teff"], yerr=results["e_logg"],
-        fmt=None, ecolor="k", alpha=0.5, zorder=-1, cmap="plasma",
+        fmt=None, ecolor="k", alpha=0.5, zorder=-1, cmap="viridis",
         label=None)
 
     if isochrone_filename is not None:
@@ -175,6 +178,7 @@ def cluster(database, wg, node_name, ges_fld, vel_range=None,
         isochrone = utils.parse_isochrone(isochrone_filename)
 
         label, _ = os.path.splitext(os.path.basename(isochrone_filename))
+        label = label.replace("_", "-")
         label = "{0} ({1:.1f}, {2:.1f})".format(label, vel_range[0], vel_range[1])
         ax_hrd.plot(isochrone["teff"], isochrone["logg"],
             c="k", lw=2, zorder=-1, label=label)
@@ -195,7 +199,7 @@ def cluster(database, wg, node_name, ges_fld, vel_range=None,
             index = np.argmin(distance)
             y.append(results["logg"][i] - isochrone["logg"][index])
 
-        ax_diff.scatter(x, y, c=results[mh_col])
+        ax_diff.scatter(x, y, c=results[mh_col], cmap="viridis")
         ax_diff.errorbar(x, y, xerr=results["e_teff"], yerr=results["e_logg"],
             fmt=None, ecolor="k", alpha=0.5, zorder=-1)
 

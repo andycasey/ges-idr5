@@ -21,23 +21,23 @@ logger.addHandler(handler)
 
 
 # Create a database object.
-db_filename = "code/db.yaml"
+db_filename = "db.yaml"
 with open(db_filename, "r") as fp:
     credentials = yaml.load(fp)
 database = GESDatabase(**credentials)
 
 
 
-
+debug = False
 wgs = (10, 11, 12, 13)
 parameters = ("teff", "logg", "mh", "xi")
 isochrones = glob("isochrones/*.dat")
 
 
 # Create node-level folders.
-nodes = database.retrieve_table("SELECT * FROM nodes")
+nodes = database.retrieve_table("SELECT id, wg, TRIM(name) as name FROM nodes")
 for node in nodes:
-    folder = "figures/node-level/{}/{}".format(node["wg"], node["name"])
+    folder = "figures/qc/wg{}/{}".format(node["wg"], node["name"])
     if not os.path.exists(folder):
         os.mkdir(folder)
 
@@ -68,13 +68,14 @@ for node in nodes:
                 isochrone_filename=isochrone, vel_range=vel_range)
 
         except:
+            if debug: raise
             logger.exception(
                 "Could not create cluster {} figure for {}/{}:".format(
                     cluster, node["wg"], node["name"]))
 
         else:
             if fig is not None:
-                basename = "figures/node-level/{}/{}/cluster-{}".format(
+                basename = "figures/qc/wg{}/{}/cluster-{}".format(
                     node["wg"], node["name"], cluster)
 
                 fig.savefig("{}.pdf".format(basename))
@@ -89,13 +90,14 @@ for node in nodes:
                 limit_to_isochrone_range=True)
 
         except:
+            if debug: raise
             logger.exception(
                 "Could not create cluster {} figure for {}/{}:".format(
                     cluster, node["wg"], node["name"]))
 
         else:
             if fig is not None:
-                basename = "figures/node-level/{}/{}/cluster-{}-limited".format(
+                basename = "figures/qc/wg{}/{}/cluster-{}-limited".format(
                     node["wg"], node["name"], cluster)
 
                 fig.savefig("{}.pdf".format(basename))
@@ -108,16 +110,18 @@ for node in nodes:
                 cluster, "teff", vel_range=vel_range)
 
         except:
+            if debug: raise
             logger.exception(
                 "Could not create param_vs_param plot for cluster {} for {}/{}:"\
                 .format(cluster, node["wg"], node["name"]))
 
         else:
-            basename = "figures/node-level/{}/{}/cluster-{}-vs-teff".format(
-                node["wg"], node["name"], cluster)
+            if fig is not None: 
+                basename = "figures/qc/wg{}/{}/cluster-{}-vs-teff".format(
+                    node["wg"], node["name"], cluster)
 
-            fig.savefig("{}.pdf".format(basename))
-            fig.savefig("{}.png".format(basename))
+                fig.savefig("{}.pdf".format(basename))
+                fig.savefig("{}.png".format(basename))
 
 
         try:
@@ -125,22 +129,22 @@ for node in nodes:
                 cluster, "logg", vel_range=vel_range)
 
         except:
+            if debug: raise
             logger.exception(
                 "Could not create param_vs_param plot for cluster {} for {}/{}:"\
                 .format(cluster, node["wg"], node["name"]))
 
         else:
-            basename = "figures/node-level/{}/{}/cluster-{}-vs-logg".format(
-                node["wg"], node["name"], cluster)
+            if fig is not None:
+                basename = "figures/qc/wg{}/{}/cluster-{}-vs-logg".format(
+                    node["wg"], node["name"], cluster)
 
-            fig.savefig("{}.pdf".format(basename))
-            fig.savefig("{}.png".format(basename))
+                fig.savefig("{}.pdf".format(basename))
+                fig.savefig("{}.png".format(basename))
 
 
         plt.close("all")
 
-
-raise a
 
 
 # H-R diagrams by setup.
@@ -152,7 +156,7 @@ for node in nodes:
         fig = plot.hrd_by_setup(database, node["wg"], node["name"])
 
     except:
-        raise 
+        if debug: raise
         logger.exception(
             "Could not create hrd_by_setup figure for {}/{}:"\
             .format(node["wg"], node["name"]))
@@ -160,7 +164,7 @@ for node in nodes:
 
     else:
         if fig is None: continue
-        basename = "figures/node-level/{wg}/{name}/hrd-by-setup".format(
+        basename = "figures/qc/wg{wg}/{name}/hrd-by-setup".format(
             wg=node["wg"], name=node["name"])
 
         fig.savefig("{}.pdf".format(basename))
@@ -180,13 +184,14 @@ for node in nodes:
         fig = plot.node_benchmark_performance(database, node["wg"], node["name"])
 
     except:
+        if debug: raise
         logger.exception(
             "Could not create node_benchmark_performance figure for {}/{}:"\
             .format(node["wg"], node["name"]))
         continue
 
     else:
-        basename = "figures/node-level/{wg}/{name}/benchmarks".format(
+        basename = "figures/qc/wg{wg}/{name}/benchmarks".format(
             wg=node["wg"], name=node["name"])
 
         fig.savefig("{}.pdf".format(basename))
@@ -207,19 +212,21 @@ for wg in wgs:
             fig = plot.compare_nodes_within_wg(database, wg, parameter)
 
         except:
+            if debug: raise
             logger.exception(
                 "Could not create compare_nodes_within_wg figure for {}/{}:"\
                 .format(wg, parameter))
             continue
 
         else:
-            fig.savefig("figures/wg-level/{}/{}.pdf".format(wg, parameter))
-            fig.savefig("figures/wg-level/{}/{}.png".format(wg, parameter))
+            fig.savefig("figures/qc/wg{}/{}.pdf".format(wg, parameter))
+            fig.savefig("figures/qc/wg{}/{}.png".format(wg, parameter))
 
 plt.close("all")
 
 
 
+"""
 # Compare temperatures to photometric temperatures.
 for node in nodes:
 
@@ -229,13 +236,14 @@ for node in nodes:
         fig = plot.compare_to_photometric_teff(database, node["wg"], node["name"])
 
     except:
+        if debug: raise
         logger.exception(
             "Could not create compare_to_photometric_teff figure for {}/{}"\
             .format(node["wg"], node["name"]))
         continue
 
     else:
-        basename = "figures/node-level/{}/{}/photometric-teff".format(
+        basename = "figures/qc/wg{}/{}/photometric-teff".format(
             node["wg"], node["name"])
 
         fig.savefig("{}.pdf".format(basename))
@@ -243,7 +251,7 @@ for node in nodes:
 
 
 plt.close("all")
-
+"""
 
 
 # Compare to previous data release.
@@ -257,13 +265,14 @@ for node in nodes:
                 database, node["wg"], node["name"], parameter)
 
         except:
+            if debug: raise
             logger.exception(
                 "Could not create compare_to_previous_dr figure for {}/{}/{}:"\
                 .format(node["wg"], node["name"], parameter))
             continue
 
         else:
-            basename = "figures/node-level/{}/{}/idr4-compare-{}".format(
+            basename = "figures/qc/wg{}/{}/idr4-compare-{}".format(
                 node["wg"], node["name"], parameter)
 
             fig.savefig("{}.pdf".format(basename))
@@ -283,13 +292,14 @@ for node in nodes:
         fig = plot.hrd(database, node["wg"], node["name"])
 
     except:
+        if debug: raise
         logger.exception(
             "Could not create hrd figure for {}/{}:".format(
                 node["wg"], node["name"]))
         continue
 
     else:
-        basename = "figures/node-level/{wg}/{name}/hrd".format(
+        basename = "figures/qc/wg{wg}/{name}/hrd".format(
             wg=node["wg"], name=node["name"])
 
         fig.savefig("{}.pdf".format(basename))
@@ -308,13 +318,14 @@ for node in nodes:
             where="CNAME = 'ssssssss-sssssss'")
 
     except:
+        if debug: raise
         logger.exception(
             "Could not create hrd (SUN) figure for {}/{}:".format(
                 node["wg"], node["name"]))
         continue
 
     else:
-        basename = "figures/node-level/{wg}/{name}/solar".format(
+        basename = "figures/qc/wg{wg}/{name}/solar".format(
             wg=node["wg"], name=node["name"])
 
         fig.savefig("{}.pdf".format(basename))
@@ -334,13 +345,14 @@ for node in nodes:
         fig = plot.stellar_parameter_histograms(database, node["wg"], node["name"])
 
     except:
+        if debug: raise
         logger.exception(
             "Could not create stellar_parameter_histograms for {}/{}:".format(
                 node["wg"], node["name"]))
         continue
 
     else:
-        basename = "figures/node-level/{}/{}/parameter-histogram".format(
+        basename = "figures/qc/wg{}/{}/parameter-histogram".format(
             node["wg"], node["name"])
 
         fig.savefig("{}.pdf".format(basename))
@@ -358,13 +370,14 @@ for node in nodes:
         fig = plot.stellar_parameter_error_histograms(database, node["wg"], node["name"])
 
     except:
+        if debug: raise
         logger.exception(
             "Could not create stellar_parameter_error_histograms for {}/{}:".format(
                 node["wg"], node["name"]))
         continue
 
     else:
-        basename = "figures/node-level/{}/{}/parameter-error-histogram".format(
+        basename = "figures/qc/wg{}/{}/parameter-error-histogram".format(
             node["wg"], node["name"])
 
         fig.savefig("{}.pdf".format(basename))
@@ -378,11 +391,11 @@ plt.close("all")
 
 # Create summary tables.
 parameter_summary = summary.stellar_parameter_summary(database)
-parameter_summary.write("figures/wg-level/parameter-summary.txt",
+parameter_summary.write("figures/qc/parameter-summary.txt",
     format="ascii")
 
 parameter_ranges = summary.stellar_parameter_range(database)
-parameter_ranges.write("figures/wg-level/parameter-range-summary.txt",
+parameter_ranges.write("figures/qc/parameter-range-summary.txt",
     format="ascii")
 
 for node in nodes:
