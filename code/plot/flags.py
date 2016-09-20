@@ -179,6 +179,7 @@ def heatmap(database, wg, kind="tech", show_multiple_flags_per_node=True,
             # Re-order the issue indices so that they show structure, but keep
             # the same issue order for each of the nodes.
 
+            """
             matrix_indices = scipy.sparse.csgraph.reverse_cuthill_mckee(
                 scipy.sparse.csr_matrix(Z))
 
@@ -190,6 +191,18 @@ def heatmap(database, wg, kind="tech", show_multiple_flags_per_node=True,
                 labels[L*i:L*(i + 1)] = labels[L*i + issue_indices]
                 Z[L*i:L*(i + 1), :] = Z[L*i + issue_indices, :]
                 Z[:, L*i:L*(i + 1)] = Z[:, L*i + issue_indices]
+            """
+
+            # Re-order the issue indices so that they show structure
+
+            for i in range(M):
+                indices = scipy.sparse.csgraph.reverse_cuthill_mckee(
+                    scipy.sparse.csr_matrix(Z[L*i:L*(i+1), L*i:L*(i+1)]))
+
+                labels[L*i:L*(i + 1)] = labels[L*i + indices]
+                Z[L*i:L*(i + 1), :] = Z[L*i + indices, :]
+                Z[:, L*i:L*(i + 1)] = Z[:, L*i + indices]
+
 
         else:
             raise NotImplementedError 
