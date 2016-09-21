@@ -42,15 +42,16 @@ model = SingleParameterEnsembleModel(database, 11, benchmarks[benchmarks["TEFF"]
 data_dict = model._prepare_data("teff", default_calibrator_sigma=150)
 
 op_params = model.optimize(data_dict, init={
-    "var_intrinsic": 100**2,
-    "var_node_rand": np.ones(data_dict["N_estimators"]) * 100**2,
-    "var_node_sys": np.ones(data_dict["N_estimators"]) * 100**2,
+    "intrinsic_var": 100**2,
+    "estimator_sys_var": np.ones(data_dict["N_estimators"]) * 100**2,
+    "estimator_rand_var": np.ones(data_dict["N_estimators"]) * 100**2,
     "truths": np.array(data_dict["calibrator_mu"])
-    })
+    }, overwrite=True)
 
 # Drop the optimized covariance matrix.
 del op_params["covariance"]
 
-samples = model.sample(data_dict, init=op_params)
+samples = model.sample(data_dict, init=op_params, overwrite=True)
 
-fig = samples.plot(pars=("var_intrinsic", "var_node_sys", "var_node_rand"))
+fig = samples.plot(
+    pars=("intrinsic_sigma", "estimator_rand_sigma", "estimator_sys_sigma"))

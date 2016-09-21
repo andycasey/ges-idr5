@@ -341,8 +341,8 @@ class SingleParameterEnsembleModel(BaseEnsembleModel):
         assert not np.all(no_estimates)
         mean_estimate[no_estimates] = fill_function(mean_estimate[~no_estimates])
 
-        additive_variance = np.zeros_like(mean_estimate)
-        additive_variance[no_estimates] += fill_variance
+        additive_var = np.zeros_like(mean_estimate)
+        additive_var[no_estimates] += fill_variance
 
         # We also need to update the number of estimates array so that this is
         # considered to be a single (bad) estimate, otherwise we will divide by
@@ -353,7 +353,7 @@ class SingleParameterEnsembleModel(BaseEnsembleModel):
         data_dict.update({
             "mean_estimate": mean_estimate,
             "N_estimates_per_estimator": N_estimates_per_estimator,
-            "additive_variance": additive_variance
+            "additive_var": additive_var
         })
 
         assert np.all([np.all(np.isfinite(v)) for v in data_dict.values()])
