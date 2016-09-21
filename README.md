@@ -11,4 +11,9 @@ Authors
  - Gerry Gilmore (Cambridge)
  - Sofia Randich (INAF)
 
+Requirements
+============
 
+  - numpy
+  - scipy
+  - pystan (v 2.10.0.0 or above: there is a serious bug in `falling_factorial` in previous Stan versions)
