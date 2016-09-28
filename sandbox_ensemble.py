@@ -112,17 +112,18 @@ op_params = model.optimize(data, init=init)
 
 model = NewEnsembleModel(database, 11, benchmarks[benchmarks["TEFF"] < 8000])
 
-data = model._prepare_data("teff", )
-
-op_params = model.optimize(data, init={
+data, metadata = model._prepare_data("teff", exclude_missing_test=True)
+init={
     "truths": data["mu_calibrator"],
     "var_intrinsic": 100**2,
     "var_sys_estimator": 100**2 * np.ones(7),
     "alpha_sq": 1000 * np.ones(7),
-    })
+    "rho_estimators": np.zeros(metadata["N_pairwise_estimators"])
+    }
 
-samples = model.sample(data, init=op_params)
-
+op_params = model.optimize(data, init=init)
+raise a
+samples = model.sample(data, init=init)
 
 
 
