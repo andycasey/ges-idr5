@@ -59,7 +59,10 @@ data {
     vector<lower=0>[N_estimators] var_additive[N_calibrator_visits]; 
 
     // Inverse variance (SNR**-2) of the spectrum
-    vector[N_calibrator_visits] ivar_spectrum;                          
+    vector[N_calibrator_visits] ivar_spectrum;     
+
+    matrix[N_estimators, N_estimators] Sigma_c0[N_calibrator_visits];
+    matrix[N_estimators, N_estimators] Sigma_c1[N_calibrator_visits];                     
 }
 
 transformed data {
@@ -80,6 +83,9 @@ parameters {
     // Correlation coefficients between different nodes.
     vector<lower=-1,upper=+1>[K] rho_estimators;
 
+    // Estimator biases
+    vector[N_estimators] c0_estimators;
+
     // God's word
     vector[N_calibrators] truths;
 }
@@ -89,42 +95,50 @@ transformed parameters {
     cov_matrix[N_estimators] Sigma[N_calibrator_visits];
     {
         int a;
-        matrix[N_estimators, N_estimators] rho;
-
-        rho = diag_matrix(rep_vector(1.0, N_estimators));
-        a = 1;
-        for (i in 1:N_estimators) {
-            for (j in i + 1:N_estimators) {
-                rho[i, j] = rho_estimators[a];
-                rho[j, i] = rho_estimators[a];
-                a = a + 1;
-            }
-        }
-        
+        real sigma_j;
+        real sigma_k;
         for (i in 1:N_calibrator_visits) {
-            vector[N_estimators] row_sigma;
-            for (j in 1:N_estimators)
-                row_sigma[j] = sqrt(
-                    var_intrinsic + 
-                    var_sys_estimator[j] +
-                    alpha_sq[j] * ivar_spectrum[i] + 
-                    var_additive[i, j]);
-            if (i == 1)
-                print("Sigma", rho[i]);
+            a = 1;
+            for (j in 1:N_estimators) {
+                for (k in j:N_estimators) {
+                    sigma_j = sqrt(
+                        var_intrinsic + 
+                        var_sys_estimator[j] + 
+                        alpha_sq[j] * ivar_spectrum[i]);
 
-            Sigma[i] = rho .* (
-                rep_matrix(row_sigma, N_estimators)' .* 
-                rep_matrix(row_sigma, N_estimators));
+                    sigma_k = sqrt(
+                        var_intrinsic +
+                        var_sys_estimator[k] + 
+                        alpha_sq[k] * ivar_spectrum[i]);
+
+                    if (j == k) {
+                        Sigma[i,j,j] = sigma_j * sigma_j;
+                    }
+                    else {
+                        Sigma[i,j,k] = rho_estimators[a] * sigma_j * sigma_k;
+                        Sigma[i,k,j] = rho_estimators[a] * sigma_j * sigma_k; 
+                        a = a + 1;
+                    }
+                }
+            }
+
+            for (j in 1:N_estimators) {
+                if (var_additive[i, j] > 1) {
+                    Sigma[i, j, :] = rep_vector(0.0, N_estimators)';
+                    Sigma[i, :, j] = rep_vector(0.0, N_estimators);
+                    Sigma[i, j, j] = var_additive[i, j];
+                }
+            }
+
         }
     }
 }
 
 model {
-    print("rho ", rho_estimators[1:5]);
     mu_calibrator ~ normal(to_vector(truths), sigma_calibrator); 
     for (i in 1:N_calibrator_visits) {
         estimates[i] ~ multi_normal(
-            to_vector(rep_vector(truths[calibrator_index[i]], N_estimators)),
+            to_vector(rep_vector(truths[calibrator_index[i]], N_estimators)) - c0_estimators,
             Sigma[i]);
     }
 }
