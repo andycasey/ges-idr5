@@ -64,6 +64,8 @@ CREATE TABLE results (
     cname char(16) not null,
     filename char(255) not null,
     setup char(100) not null,
+    
+    snr numeric,
 
     vel numeric,
     e_vel numeric,

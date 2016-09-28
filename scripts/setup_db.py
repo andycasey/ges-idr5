@@ -27,6 +27,7 @@ masterlist_filename \
 # Connect to database.
 with open(db_filename, "r") as fp:
     credentials = yaml.load(fp)
+    credentials["database"] = "ges_idr5_with_spectra_snr"
     connection = pg.connect(**credentials)
 
 logger = logging.getLogger("ges")
