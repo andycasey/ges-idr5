@@ -110,25 +110,23 @@ init = {
 op_params = model.optimize(data, init=init)
 """
 
-model = NewEnsembleModel(database, 11, benchmarks[benchmarks["TEFF"] < 8000])
+model = NewEnsembleModel(database, 10, benchmarks[benchmarks["TEFF"] < 8000])
 
-data, metadata = model._prepare_data("logg")
+data, metadata = model._prepare_data("teff")
 
-var_intrinsic = 0.25**2
+var_intrinsic = 100**2
 init = {
     "truths": data["mu_calibrator"],
     "var_intrinsic": var_intrinsic**2,
-    "var_sys_estimator": var_intrinsic**2 * np.ones(7),
-    "alpha_sq": 1000 * np.ones(7),
+    "var_sys_estimator": var_intrinsic**2 * np.ones(data["N_estimators"]),
+    "alpha_sq": 1000 * np.ones(data["N_estimators"]),
     "rho_estimators": np.zeros(metadata["N_pairwise_estimators"]),
-    "c0_estimators": np.zeros(7)
+    "c0_estimators": np.zeros(data["N_estimators"])
 }
-
-
 
 op_params = model.optimize(data, init=init)
 
-samples = model.sample(data, init=op_params)
+fit = model.sample(data, init=op_params)
 
 
 
@@ -137,6 +135,7 @@ samples = model.sample(data, init=op_params)
 
 
 raise a
+
 
 
 
@@ -189,9 +188,9 @@ def homogenise_survey_measurements(cname, wg, parameter, ensemble_model_samples,
         "var_sys_estimator",
         "alpha_sq",
         "rho_estimators",
+        "c0_estimators"
     ]
-    if "c0_estimators" in ensemble_model_samples.model_pars:
-        pars.append("c0_estimators")
+
     
     samples = ensemble_model_samples.extract(pars=pars)
 
@@ -209,9 +208,9 @@ def homogenise_survey_measurements(cname, wg, parameter, ensemble_model_samples,
 
         var_total[j, :] \
             = samples["var_sys_estimator"][:, k] \
-                + samples["alpha_sq"][:, k]/estimates["snr"][j] \
-                + samples["var_intrinsic"][k]
+                + samples["alpha_sq"][:, k]/estimates["snr"][j]
 
+                
     # 2. Calculate the weighted mean from each node.
     M = len(set(estimates["node_id"]))
     weighted_node_mu = np.zeros((M, K))
@@ -220,8 +219,7 @@ def homogenise_survey_measurements(cname, wg, parameter, ensemble_model_samples,
     for i, si in enumerate(estimates.groups.indices[:-1]):
         ei = estimates.groups.indices[i + 1]
 
-        mu = estimates[parameter][si:ei].reshape(-1, 1) \
-            + samples.get("c0_estimators", np.zeros(K))[si:ei] # Biases
+        mu = (estimates[parameter][si:ei]).reshape(-1, 1) # Biases
         variance = var_total[si:ei]
 
         weights = 1.0/variance
@@ -231,7 +229,7 @@ def homogenise_survey_measurements(cname, wg, parameter, ensemble_model_samples,
         weighted_mu = np.sum(normalized_weights * mu, axis=0)
         weighted_variance = 1.0/np.sum(weights, axis=0)
 
-        weighted_node_mu[i, :] = weighted_mu
+        weighted_node_mu[i, :] = weighted_mu + samples["c0_estimators"][:, i]
         weighted_node_variance[i, :] = weighted_variance
         node_ids[i] = estimates["node_id"][si]
 
@@ -256,15 +254,17 @@ def homogenise_survey_measurements(cname, wg, parameter, ensemble_model_samples,
     return posterior
 
 
+
+
+sun = homogenise_survey_measurements(
+    "ssssssss-sssssss", 11, "logg", samples, database)
+
+
+
+
 # 18 Sco:
 homogenise_survey_measurements(
     "16153746-0822162", 11, "logg", samples, database)
-
-
-
-homogenise_survey_measurements(
-    "ssssssss-sssssss", 11, "logg", samples, database)
-
 
 
 
