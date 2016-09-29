@@ -119,6 +119,17 @@ CREATE TABLE results (
 
     peculi char(255),
     remark char(255),
-    tech char(255)
+    tech char(255),
+
+    propagated_peculi char(255),
+    propagated_remark char(255),
+    propagated_tech char(255),
+
+    propagated_peculi_from_result_id integer,
+    propagated_remark_from_result_id integer,
+    propagated_tech_from_result_id integer,
+
+    passed_quality_control boolean
 );
 ALTER TABLE results ADD COLUMN id BIGSERIAL PRIMARY KEY;
+ALTER TABLE results ALTER COLUMN passed_quality_control SET DEFAULT true;
