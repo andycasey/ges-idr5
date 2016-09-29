@@ -133,3 +133,80 @@ CREATE TABLE results (
 );
 ALTER TABLE results ADD COLUMN id BIGSERIAL PRIMARY KEY;
 ALTER TABLE results ALTER COLUMN passed_quality_control SET DEFAULT true;
+
+
+DROP TABLE IF EXISTS recommended_results;
+CREATE TABLE recommended_results (
+    wg integer not null,
+    cname char(16) not null,
+    provenance_setups char(255) not null,
+    
+    snr numeric,
+
+    vel numeric,
+    e_vel numeric,
+    vrot numeric,
+    e_vrot numeric,
+    
+    teff numeric,
+    e_teff numeric,
+    nn_teff integer,
+    enn_teff numeric,
+    nne_teff numeric,
+    sys_err_teff numeric,
+    
+    logg numeric,
+    e_logg numeric,
+    nn_logg integer,
+    enn_logg numeric,
+    nne_logg numeric,
+    sys_err_logg numeric,
+    lim_logg integer,
+    
+    feh numeric,
+    e_feh numeric,
+    nn_feh integer,
+    enn_feh numeric,
+    nne_feh numeric,
+    sys_err_feh numeric,
+    
+    xi numeric,
+    e_xi numeric,
+    nn_xi integer,
+    enn_xi numeric,
+    nne_xi numeric,
+    
+    mh numeric,
+    e_mh numeric,
+    nn_mh integer,
+    enn_mh numeric,
+    nne_mh numeric,
+
+    alpha_fe numeric,
+    e_alpha_fe numeric,
+    nn_alpha_fe integer,
+    enn_alpha_fe numeric,
+    nne_alpha_fe numeric,
+
+    vrad numeric,
+    e_vrad numeric,
+    vsini numeric,
+    e_vsini numeric,
+
+    peculi char(255),
+    remark char(255),
+    tech char(255)
+);
+ALTER TABLE recommended_results ADD COLUMN id BIGSERIAL PRIMARY KEY;
+CREATE UNIQUE INDEX single_cname_result_per_wg ON recommended_results (wg, cname);
+
+ALTER TABLE recommended_results ADD CONSTRAINT valid_e_teff_required
+    CHECK ((e_teff > 0 AND e_teff is not null) OR teff = 'NaN');
+ALTER TABLE recommended_results ADD CONSTRAINT valid_e_logg_required
+    CHECK ((e_logg > 0 AND e_logg is not null) OR logg = 'NaN');
+ALTER TABLE recommended_results ADD CONSTRAINT valid_e_feh_required
+    CHECK ((e_feh > 0 AND e_feh is not null) OR feh = 'NaN');
+ALTER TABLE recommended_results ADD CONSTRAINT valid_e_xi_required
+    CHECK ((e_xi > 0 AND e_xi is not null) OR xi = 'NaN');
+ALTER TABLE recommended_results ADD CONSTRAINT valid_e_mh_required
+    CHECK ((e_mh > 0 AND e_mh is not null) OR mh = 'NaN');
