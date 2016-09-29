@@ -4,100 +4,160 @@
 Propagate relevant flag information from one node to others.
 """
 
+import logging
 import yaml
 
 from code import GESDatabase
 
 # Connect to database.
+db_filename = "db.yaml"
 with open(db_filename, "r") as fp:
     credentials = yaml.load(fp)
 
 # Create a database object.
 database = GESDatabase(**credentials)
 
-
-# All flags taken from WG14 dictionary for GES iDR5:
-# https://docs.google.com/spreadsheets/d/1rpgi2MC41iu8nkvfZfK0KMWp_GH1xI4RvK3SSLRL43g/edit#gid=1224142251
-
-# Anything matching these flags (when used as a PostgreSQL `LIKE` query, e.g.:
-# "TECH LIKE '%{spectrum_related_flag}-%'") will be propagated to other results 
-# that use that same spectrum. For example, specifying '10100' will search for
-# TECH entries matching '%10100-%' (the dash - is included for you)
-
-spectrum_related_flags = [
-    10100, # Saturated spectrum
-    10103, # Suspicious or bad co-addition of exposures
-    10104, # Suspicious or bad spectrum normalisation
-    10105, # Incomplete spectrum (missing wavelengths)
-    10106, # Broken spectrum (picket-fence pattern, Heaviside pattern, …)
-    10107, # Many or badly placed remaining cosmics
-    10108, # Leak of SimCal fibres in science/sky spectra causing spurious emission features
-    10110, # Suspicious or bad sky subtraction, to be specified using the suffix (it includes problems like: over-subtracted or below-zero spectrum, under-subtraction, velocity mismatch (producing spurious P-Cygni or inverse-P-Cygni-like residuals), problematic airglow subtraction)
-    10150, # Suspicious or bad cross-correlation function (CCF)
-# These are also spectrum-related flags for data reduction, but we won't propagate
-# them because they won't affect all nodes in the same way
-#    10151, # No radial velocity determination
-#    10152, # Suspicious radial velocity determination
-#    10153, # Discrepant radial velocities (use suffix to specify the threshold; e.g., |RV_max-RV_min| > 5*err_RV )
-#    10154, # Abnormally large RV error (use suffix to specify the threshold)
-#    10155, # Revised radial velocity (use `VRAD' column to specify the new determination)
-#    10200, # No rotational velocity (v*sin(i)) determination
-#    10210, # Revised rotational velocity (v*sin(i); use `VSINI' column to specify the new determination)
-]
+logger = logging.getLogger("ges")
 
 
-# Anything matching these flags will cause us to mark that particular node 
-# result as being suspicious, and won't get used in homogenisation.
-node_related_flags [
-    10300, # Key setup(s) for a given paramater determination is missing
-    10301, # Node's renormalisation failed
-    10302, # Code convergence issue: one of more convergence criteria (node-specific) could not be fulfilled. Criteria to be described using the suffix
-    10303, # Code convergence issue: temperature (Teff) is out of the node's grid. Conditions to be described using the suffix
-    10304, # Code convergence issue: gravity (log g) is out of the node's grid. Conditions to be described using the suffix
-    10305, # Code convergence issue: metallicity ([M/H] or [Fe/H]) is out of the node's grid. Conditions to be described using the suffix
-    10306, # Code convergence issue: microturbulent velocity (vtur) is out of the node's grid. Conditions to be described using the suffix
-    10307, # Code convergence issue: [alpha/Fe] is out of the node's grid. Conditions to be described using the suffix
-    10308, # One or more parameter (which could not be identified) outside the node's grid; if possible rather use 10303-10307 flags
-    #10309, # Photometric gravity (instead of spectroscopic gravity)
-    10311, # No parameters because too few Fe I lines
-    10312, # No parameters because too few FeII lines
-    10313, # The node-measured broadening is too small
-    10314, # The node-measured broadening is too large
-    #10315, # Microturbulence is determined according to the last Bergemann and Hill prescription (http://great.ast.cam.ac.uk/GESwiki/GesWg/GesWg11/Microturbulence)
-    10316, # Incomplete/missing set of parameters because some parameter(s) are in a specific range. Conditions to be described using the suffix
-    10317, # Incomplete/missing set of parameters because of mass loss / wind determination problems. Conditions to be described using the suffix
-    10318, # Code convergence issue: only upper/lower limit on Teff was derivable but will not be provided. /!\ Use only if Teff is NOT provided. If Teff is provided as an upper/lower limit, absolutely use the fits column LIM_TEFF
-    10319, # Code convergence issue: only upper/lower limit on log g was derivable but will not be provided. /!\ Use only if logg is NOT provided. If log g is provided as an upper/lower limit, absolutely use the fits column LIM_LOGG
-    10320, # Incomplete/missing set of parameters because of suspected multiple stellar system. /!\ Raise also the relevant flags from 20005 to 20070
-    10399, # No parameters provided because of lack of time
-    10500, # No EW measurements
-    13000, # Microturbulence (vtur): unphysical or unreliable determination
-    #13002, # Microturbulence: 2 km/s < vtur
-    13003, # Microturbulence: 3 km/s < vtur
-    13010, # Microturbulence: 10 km/s < vtur
-    13020, # Suspicious stellar parameters because temperature (Teff) is on the node's grid edge. Conditions to be described using the suffix
-    13021, # Suspicious stellar parameters because gravity (log g) is on the node's grid edge. Conditions to be described using the suffix
-    13022, # Suspicious stellar parameters because metallicity ([M/H] or [Fe/H]) is on the node's grid edge. Conditions to be described using the suffix
-    13023, # Suspicious stellar parameters because microturbulent velocity (vtur) is on the node's grid edge. Conditions to be described using the suffix
-    13024, # Suspicious stellar parameters because [alpha/Fe] is on the node's grid edge. Conditions to be described using the suffix
-    13025, # Suspicious macroturbulence because v*sin(i) is too high. Conditions to be described using the suffix
-    13026, # Incompatibility between spectroscopy and photometry
-    13027, # Suspicious stellar parameters: multiple system. /!\ Raise also the relevant flags from 20005 to 20070
-    13028, # Suspicious stellar parameters because v*sin(i) is too high. Conditions to be described using the suffix
-]
+with open("flags.yaml", "r") as fp:
+    qc_flags = yaml.load(fp)
 
-# Anything matching these flags will cause us to mark all results from that
-# CNAME as being suspicious, and won't get used in homogenisation.
-# NOTE: If you have time, you should actually look to see what effect this has
-#       on the individual nodes, because some will be able to handle these
-#       conditions while others will not, so you may be throwing away data!
 
-cname_related_flags = [
-    11020, # v*sin(i) too high, preventing the determination of some/all parameters: v*sin(i) >  20 km/s
-    11050, # v*sin(i) too high, preventing the determination of some/all parameters: v*sin(i) >  50 km/s
-    11100, # v*sin(i) too high, preventing the determination of some/all parameters: v*sin(i) > 100 km/s
-    11150, # v*sin(i) too high, preventing the determination of some/all parameters: v*sin(i) > 150 km/s
-    11200, # v*sin(i) too high, preventing the determination of some/all parameters: v*sin(i) > 200 km/s
-    11250, # v*sin(i) too high, preventing the determination of some/all parameters: v*sin(i) > 250 km/s
-    11300, # v*sin(i) too high, preventing the determination of some/all parameters: v*sin(i) > 300 km/s
-]
+# Clear any previous propagations before starting.
+'''
+logger.info("Clearing previous propagations and setting all to have passed_quality_control = True")
+database.update(
+    """ UPDATE  results
+           SET  propagated_tech_from_result_id = null,
+                propagated_peculi_from_result_id = null,
+                propagated_remark_from_result_id = null,
+                propagated_tech = '',
+                propagated_peculi = '',
+                propagated_remark = '',
+                passed_quality_control = true;""")
+'''
+
+N_propagations = {}
+N_marked_as_poor_quality = {}
+
+# PROPAGATE BY SPECTRUM
+
+for flag in qc_flags["propagate_flags_by_spectrum"]:
+
+    N_propagations.setdefault(flag, 0)
+
+    affected = database.retrieve_table(
+        """ SELECT  id, TRIM(filename) AS filename, TRIM(tech) as tech
+            FROM    results
+            WHERE   tech LIKE '%{}-%'
+        """.format(flag))
+    
+    if affected is None:
+        continue
+
+    for row in affected:
+    
+        # Each row can have multiple TECH flags, so first identify the TECH flag
+        # that PostgreSQL matched on.
+        tech_flags = row["tech"].strip().split("|")
+        for tech_flag in tech_flags:
+            if "{}-".format(flag) in tech_flag:
+                matched_tech_flag = tech_flag
+                break
+
+        else:
+            raise ValueError(
+                "cannot identify tech flag {} from the SQL match: {}".format(
+                    flag, row["tech"].strip()))
+
+
+        # Update other results using the same filename(s).
+        filenames = row["filename"].strip().split("|")
+        for j, filename in enumerate(filenames):
+            if not filename: continue
+
+            N = database.update(
+                """ UPDATE  results
+                    SET     propagated_tech_from_result_id = '{}',
+                            propagated_tech = '{}',
+                            passed_quality_control = false
+                    WHERE   filename LIKE '%{}%'
+                      AND   passed_quality_control = true
+                """.format(
+                    int(row["id"]), matched_tech_flag, filename))
+            
+            N_propagations[flag] += N
+
+            if N > 0:
+                logger.info("Propagated ({}/{}/{}) to {} other entries".format(
+                    row["id"], matched_tech_flag, filename, N))    
+
+
+        database.connection.commit()
+
+
+# PROPAGATE BY CNAME
+
+for flag in qc_flags["propagate_flags_by_cname"]:
+
+    N_propagations.setdefault(flag, 0)
+
+    affected = database.retrieve_table(
+        """ SELECT  id, cname, TRIM(tech) as tech
+              FROM  results
+             WHERE  tech LIKE '%{}-%'
+        """.format(flag))
+
+    if affected is None:
+        continue
+
+    for row in affected:
+        # Each row can have multiple TECH flags, so first identify the TECH flag
+        # that PostgreSQL matched on.
+        tech_flags = row["tech"].strip().split("|")
+        for tech_flag in tech_flags:
+            if "{}-".format(flag) in tecH-flag:
+                matched_tech_flag = tech_flag
+                break
+
+        else:
+            raise ValueError(
+                "cannot identify tech flag {} from the SQL match: {}".format(
+                    flag, row["tech"].strip()))
+
+        # Update other results matching this CNAME.
+        N = database.update(
+            """ UPDATE  results
+                   SET  propagated_tech_from_result_id = '{}',
+                        propagated_tech = '{}',
+                        passed_quality_control = false
+                 WHERE  cname = '{}'
+                   AND  passed_quality_control = true;
+            """.format(int(row["id"]), matched_tech_flag, row["cname"]))
+        N_propagations[flag] += N
+
+        if N > 0:
+            logger.info("Propagated ({}/{}/{}) to {} other entries".format(
+                row["id"], matched_tech_flag, row["CNAME"], N))
+
+        database.connection.commit()
+
+
+# NODE-SPECIFIC FLAGS
+
+for node_specific_flag in qc_flags["node_specific_flag"]:
+
+    N = database.update(
+        """ UPDATE  results
+               SET  passed_quality_control = false
+             WHERE  tech LIKE '%{}-%'
+               AND  passed_quality_control = true;
+        """.format(node_specific_flag))
+    N_marked_as_poor_quality[node_specific_flag] = N
+
+    logger.info("Marked {} results as poor quality due to matching flag {}"\
+        .format(N, node_specific_flag))
+
+database.connection.commit()
+
