@@ -104,7 +104,8 @@ def param_vs_param(database, wg, node_name, ges_fld, reference_parameter,
 
 
 def cluster(database, wg, node_name, ges_fld, vel_range=None,
-    isochrone_filename=None, limit_to_isochrone_range=False):
+    isochrone_filename=None, limit_to_isochrone_range=False, ax=None,
+    no_tech_flags=False, show_legend=True, **kwargs):
     """
     Show a Hertzsprung-Russell diagram for cluster stars, with isochrones
     optionally shown.
@@ -129,14 +130,29 @@ def cluster(database, wg, node_name, ges_fld, vel_range=None,
         The path of an isochrone_filename file to show for this cluster.
 
     :param limit_to_isochrone_range: [optional]
+
+    :param ax: [optional]
+        Provide an axes to plot the HRD in.
+
+    :param no_tech_flags: [optional]
+        Require that all results have no TECH flags.
     """
 
     vel_range = vel_range or (-1000, 1000)
+
+    vmin = kwargs.pop("vmin", None)
+    vmax = kwargs.pop("vmax", None)
 
 
     # Get the data.
     node_id = database.retrieve_node_id(wg, node_name)
     
+    if no_tech_flags:
+        tech_flag_constraint = " AND TRIM(r.TECH) = ''"
+
+    else:
+        tech_flag_constraint = ""
+
     # Collect the results for this node.
     results = database.retrieve_table(
         """ SELECT  DISTINCT ON (r.cname)
@@ -147,7 +163,7 @@ def cluster(database, wg, node_name, ges_fld, vel_range=None,
                 AND TRIM(s.ges_fld) = %s
                 AND s.vel > %s
                 AND s.vel < %s
-                AND node_id = %s""",
+                AND node_id = %s""" + tech_flag_constraint,
                 (ges_fld, min(vel_range), max(vel_range), node_id))
 
 
@@ -159,15 +175,22 @@ def cluster(database, wg, node_name, ges_fld, vel_range=None,
     # Draw velocity/metallicity. Highlight members.
     gs = gridspec.GridSpec(3, 1, height_ratios=[1, 12, 4])
 
-    fig = plt.figure()
-    ax_hrd = plt.subplot(gs[1])
-    ax_diff = plt.subplot(gs[2])
+    if ax is None:        
+        fig = plt.figure()
+        ax_hrd = plt.subplot(gs[1])
+        ax_diff = plt.subplot(gs[2])
+
+    else:
+        ax_diff = None
+        ax_hrd = ax
+        fig = ax.figure
 
     mh_col = utils.mh_or_feh(results)
 
     # Draw HRD, distinguishing markers by setup.
+    print(np.nanmin(results[mh_col]), np.nanmax(results[mh_col]))
     scat = ax_hrd.scatter(results["teff"], results["logg"], c=results[mh_col],
-        label=None, cmap="viridis")
+        label=None, cmap="viridis", vmin=vmin, vmax=vmax)
     ax_hrd.errorbar(results["teff"], results["logg"],
         xerr=results["e_teff"], yerr=results["e_logg"],
         fmt=None, ecolor="k", alpha=0.5, zorder=-1, cmap="viridis",
@@ -199,27 +222,32 @@ def cluster(database, wg, node_name, ges_fld, vel_range=None,
             index = np.argmin(distance)
             y.append(results["logg"][i] - isochrone["logg"][index])
 
-        ax_diff.scatter(x, y, c=results[mh_col], cmap="viridis")
-        ax_diff.errorbar(x, y, xerr=results["e_teff"], yerr=results["e_logg"],
-            fmt=None, ecolor="k", alpha=0.5, zorder=-1)
-
-        ax_diff.axhline(0, linestyle=":", c="#666666", zorder=-2)
-
-        ax_diff.set_xlabel(r"$T_{\rm eff}$ $({\rm K})$")
-        ax_diff.set_ylabel(r"$\Delta\log{g}$")
 
         if not limit_to_isochrone_range:
             xlimits = ax_hrd.get_xlim()[::-1]
             ylimits = ax_hrd.get_ylim()[::-1]
 
-        #ax_diff.set_xlim(ax_hrd.get_xlim()[::-1])
-        ax_diff.set_xlim(xlimits)
-        ax_diff.set_ylim(ax_diff.get_ylim()[::-1])
-        ax_diff.xaxis.set_major_locator(MaxNLocator(5))
-        ax_diff.yaxis.set_major_locator(MaxNLocator(5))
+        if ax_diff is not None:
+
+            ax_diff.scatter(x, y, c=results[mh_col], cmap="viridis", s=50)
+            ax_diff.errorbar(x, y, xerr=results["e_teff"], yerr=results["e_logg"],
+                fmt=None, ecolor="k", alpha=0.5, zorder=-1)
+
+            ax_diff.axhline(0, linestyle=":", c="#666666", zorder=-2)
+
+            ax_diff.set_xlabel(r"$T_{\rm eff}$ $({\rm K})$")
+            ax_diff.set_ylabel(r"$\Delta\log{g}$")
+            #ax_diff.set_xlim(ax_hrd.get_xlim()[::-1])
+            ax_diff.set_xlim(xlimits)
+            ax_diff.set_ylim(ax_diff.get_ylim()[::-1])
+            ax_diff.xaxis.set_major_locator(MaxNLocator(5))
+            ax_diff.yaxis.set_major_locator(MaxNLocator(5))
+
+
         ax_hrd.set_xticklabels([])
 
-        ax_hrd.legend(frameon=False, loc="upper left")
+        if show_legend:
+            ax_hrd.legend(frameon=False, loc="upper left")
 
     else:
         ax_hrd.set_xlabel(r"$T_{\rm eff}$ $({\rm K})$")
@@ -233,10 +261,11 @@ def cluster(database, wg, node_name, ges_fld, vel_range=None,
     ax_hrd.set_xlim(xlimits)
     ax_hrd.set_ylim(ylimits)
 
-    cb = plt.colorbar(
-        cax=plt.subplot(gs[0]), mappable=scat, orientation='horizontal')
-    cb.ax.xaxis.set_ticks_position('top')
-    cb.ax.xaxis.set_label_position('top')
-    cb.set_label(r"$[{\rm Fe}/{\rm H}]$")
+    if ax is None:
+        cb = plt.colorbar(
+            cax=plt.subplot(gs[0]), mappable=scat, orientation='horizontal')
+        cb.ax.xaxis.set_ticks_position('top')
+        cb.ax.xaxis.set_label_position('top')
+        cb.set_label(r"$[{\rm Fe}/{\rm H}]$")
 
     return fig
