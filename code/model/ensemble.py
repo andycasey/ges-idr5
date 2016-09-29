@@ -342,13 +342,13 @@ class SingleParameterEnsembleModel(BaseEnsembleModel):
 
     _MODEL_PATH = os.path.join(
         os.path.dirname(os.path.realpath(__file__)),
-        "new-ensemble-model.stan")
+        "single-parameter-ensemble-model-with-correlations.stan")
 
     def _prepare_data(self, parameter=None, default_sigma_calibrator=1e3,
         fill_function=np.mean, fill_variance=1e50, require_no_gaps=False,
         include_calibrator_function=None):
         """
-        Prepare the data for the model so that it can be supplied to STAN.
+        Prepare the data for the model so that it can be supplied to Stan.
 
         :param parameter: [optional]
             The name of the model parameter (e.g., teff) that will be used in
