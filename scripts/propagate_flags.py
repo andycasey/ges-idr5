@@ -117,7 +117,7 @@ for flag in qc_flags["propagate_flags_by_cname"]:
         # that PostgreSQL matched on.
         tech_flags = row["tech"].strip().split("|")
         for tech_flag in tech_flags:
-            if "{}-".format(flag) in tecH-flag:
+            if "{}-".format(flag) in tech_flag:
                 matched_tech_flag = tech_flag
                 break
 
@@ -139,14 +139,14 @@ for flag in qc_flags["propagate_flags_by_cname"]:
 
         if N > 0:
             logger.info("Propagated ({}/{}/{}) to {} other entries".format(
-                row["id"], matched_tech_flag, row["CNAME"], N))
+                row["id"], matched_tech_flag, row["cname"], N))
 
         database.connection.commit()
 
 
 # NODE-SPECIFIC FLAGS
 
-for node_specific_flag in qc_flags["node_specific_flag"]:
+for node_specific_flag in qc_flags["node_specific_flags"]:
 
     N = database.update(
         """ UPDATE  results
@@ -156,8 +156,8 @@ for node_specific_flag in qc_flags["node_specific_flag"]:
         """.format(node_specific_flag))
     N_marked_as_poor_quality[node_specific_flag] = N
 
-    logger.info("Marked {} results as poor quality due to matching flag {}"\
-        .format(N, node_specific_flag))
+    if N > 0:
+        logger.info("Marked {} results as poor quality due to matching flag {}"\
+            .format(N, node_specific_flag))
 
 database.connection.commit()
-
