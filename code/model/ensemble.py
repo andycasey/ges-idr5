@@ -9,8 +9,6 @@ import numpy as np
 import os
 import pystan as stan
 from astropy.table import Table
-from astropy.io import fits # HACK REMOVE TODO
-
 
 logger = logging.getLogger("ges")
 
