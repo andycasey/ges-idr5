@@ -81,7 +81,6 @@ logger.info("Ingestion complete.")
 
 # Note that there is an issue with the CNAMEs of UVES benchmark spectra. There
 # are two CNAME entries for alf_Cen_A, two for alf_Cet, and two for GJ880.
-
 database.execute(
     """ UPDATE spectra
            SET cname = '14392972-6049560'
@@ -96,5 +95,13 @@ database.execute(
     """ UPDATE spectra
            SET cname = '22563384+1633085'
          WHERE ges_fld like 'GJ880%'""")
+
+
+# Fix the MH/FEH issue:
+database.execute(
+    """ UPDATE results
+           SET feh = mh
+         WHERE feh = 'NaN'
+           AND mh <> 'NaN';""")
 
 database.connection.commit()
