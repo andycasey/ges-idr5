@@ -26,6 +26,8 @@ database = GESDatabase(**credentials)
 benchmarks = Table.read("fits-templates/benchmarks/GES_iDR5_FGKM_Benchmarks_ARC_29092016.fits")
 benchmarks = benchmarks[benchmarks["TEFF"] < 8000]
 
+model_path_format = "homogenisation-wg{wg}-{parameter}.model"
+
 wg = 11
 parameters = ("teff", "logg")
 sample_kwds = dict(chains=4, iter=2000)
@@ -59,3 +61,20 @@ for parameter in parameters:
     model.homogenise_all_stars(update_database=True)
 
     models[parameter] = model
+
+# TODO:
+# - VROT
+# - VEL
+# - FLAGS
+
+# - Need to remove IACAIP's shit on the edges (e.g., 8000) -- those fuckers
+
+# WTF: 12581939-6453533
+# WTF: 20184620-1501141
+# WTF: 22002658-5507466
+
+
+# Some notes:
+# - Nice is the only WG11 node that provides [alpha/Fe].
+# - If a node provides `mh` or `feh`, we can treat them as the same (see `setup_db.py`)
+# - Five nodes provide estimates of `xi`: Lumba, CAUP, Vilnius, EPINARBO, UCM
