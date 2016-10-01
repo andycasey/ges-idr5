@@ -137,6 +137,8 @@ ALTER TABLE results ALTER COLUMN passed_quality_control SET DEFAULT true;
 
 DROP TABLE IF EXISTS recommended_results;
 CREATE TABLE recommended_results (
+    result_ids integer[] not null,
+
     wg integer not null,
     cname char(16) not null,
     provenance_setups char(255) not null,
@@ -150,14 +152,16 @@ CREATE TABLE recommended_results (
     
     teff numeric,
     e_teff numeric,
-    nn_teff integer,
+    nn_nodes_teff integer,
+    nn_spectra_teff integer,
     enn_teff numeric,
     nne_teff numeric,
     sys_err_teff numeric,
     
     logg numeric,
     e_logg numeric,
-    nn_logg integer,
+    nn_nodes_logg integer,
+    nn_spectra_logg integer,
     enn_logg numeric,
     nne_logg numeric,
     sys_err_logg numeric,
@@ -165,6 +169,8 @@ CREATE TABLE recommended_results (
     
     feh numeric,
     e_feh numeric,
+    nn_nodes_feh integer,
+    nn_spectra_feh integer,
     nn_feh integer,
     enn_feh numeric,
     nne_feh numeric,
@@ -172,18 +178,24 @@ CREATE TABLE recommended_results (
     
     xi numeric,
     e_xi numeric,
+    nn_nodes_xi integer,
+    nn_spectra_xi integer,
     nn_xi integer,
     enn_xi numeric,
     nne_xi numeric,
     
     mh numeric,
     e_mh numeric,
+    nn_nodes_mh integer,
+    nn_spectra_mh integer,
     nn_mh integer,
     enn_mh numeric,
     nne_mh numeric,
 
     alpha_fe numeric,
     e_alpha_fe numeric,
+    nn_nodes_alpha_fe integer,
+    nn_spectra_alpha_fe integer,
     nn_alpha_fe integer,
     enn_alpha_fe numeric,
     nne_alpha_fe numeric,
