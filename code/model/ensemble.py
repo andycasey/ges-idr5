@@ -9,6 +9,7 @@ import numpy as np
 import os
 import pystan as stan
 from astropy.table import Table
+from itertools import combinations
 
 logger = logging.getLogger("ges")
 
@@ -37,7 +38,7 @@ def _guess_parameter_names(table, names):
 
 
 
-def _homogenise_survey_measurements(database, wg, parameter, cname, 
+def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
     stan_model=None, stan_chains=None, stan_data=None, update_database=False):
     """
     Produce an unbiased estimate of an astrophyiscal parameter for a given
@@ -51,6 +52,10 @@ def _homogenise_survey_measurements(database, wg, parameter, cname,
 
     :param parameter:
         The name of the parameter to estimate.
+
+    :param N: [optional]
+        The number of samples to draw. Setting to zero or outside the valid
+        range defaults to the maximum number of draws availiable.
 
     :param stan_model: [optional]
         The fitted Stan model. 
@@ -85,7 +90,7 @@ def _homogenise_survey_measurements(database, wg, parameter, cname,
         """.format(wg=wg, cname=cname, parameter=parameter))
 
     if estimates is None:
-        return np.array([np.nan])
+        return (np.array([np.nan]), np.array([np.nan]))
 
     # Extract N samples for all the parameters.
 
@@ -111,76 +116,94 @@ def _homogenise_survey_measurements(database, wg, parameter, cname,
             "stan_model must be provided, or stan_chains and stan_data")
 
     K = len(samples["var_intrinsic"])
+    M = len(set(estimates["node_id"]))
+
+    if 1 > N or N > K:
+        N = K
+        indices = range(K)
+
+    else:
+        # Select N random indices from K
+        indices = np.random.choice(K, N, replace=False)
 
     estimates = estimates.group_by("node_id")
-    
-    # 1. Calculate the total variance in each measurement.
-    var_total = np.zeros((len(estimates), K))
-    for j in range(len(estimates)):
-
-        # Get the node index.
-        k = np.where(estimates["node_id"][j] == unique_node_ids)[0][0]
-
-        var_total[j, :] \
-            = samples["var_intrinsic"][k] \
-                + samples["var_sys_estimator"][:, k] \
-                + samples["alpha_sq"][:, k]/estimates["snr"][j]
-                
-    # 2. Calculate the weighted mean from each node.
-    M = len(set(estimates["node_id"]))
-    weighted_node_mu = np.zeros((M, K))
-    weighted_node_variance = np.zeros((M, K))
-    node_ids = np.zeros(M)
-    for i, si in enumerate(estimates.groups.indices[:-1]):
-        ei = estimates.groups.indices[i + 1]
-
-        mu = (estimates[parameter][si:ei]).reshape(-1, 1) # Biases
-        variance = var_total[si:ei]
-
-        weights = 1.0/variance
-        normalized_weights = weights/np.sum(weights, axis=0)
-
-
-        weighted_mu = np.sum(normalized_weights * mu, axis=0)
-        weighted_variance = 1.0/np.sum(weights, axis=0)
-
-        weighted_node_mu[i, :] = weighted_mu + samples["c0_estimators"][:, i]
-        weighted_node_variance[i, :] = weighted_variance
-        node_ids[i] = estimates["node_id"][si]
-
-    posterior = np.nan * np.ones(K)
-    for i in range(K):
-
-        Sigma = np.eye(M) * weighted_node_variance[:, i]
         
-        a = 0
+    mu_samples = np.zeros(N)
+    var_samples = np.zeros(N)
+
+    rho_terms = list(combinations(unique_node_ids, 2))
+
+    for ii, i in enumerate(indices):
+
+        # Average from each node first.
+        mu_node = np.zeros(M)
+        var_node_sys = np.zeros(M)
+        var_node_rand = np.zeros(M)
+
+        node_ids = np.zeros(M)
+
+        for j, s in enumerate(estimates.groups.indices[:-1]):
+            e = estimates.groups.indices[j + 1]
+            L = e - s
+
+            k = np.where(estimates["node_id"][s] == unique_node_ids)[0][0]
+            node_ids[j] = estimates["node_id"][s]
+
+            # Calculate weighted node mean from random uncertainties.
+            mu = np.array(
+                estimates[parameter][s:e] + samples["c0_estimators"][i, k])
+
+            spectrum_snr = np.clip(estimates["snr"][s:e], 0.1, np.inf)
+            C = np.eye(L) * (samples["alpha_sq"][i, k]/spectrum_snr**2)
+
+            W = np.ones((L, 1))
+            Cinv = np.linalg.inv(C)
+            var_node_rand[j] = 1.0/np.dot(np.dot(W.T, Cinv), W)
+            mu_node[j] = var_node_rand[j] * np.dot(np.dot(W.T, Cinv), mu)
+
+            var_node_sys[j] = samples["var_sys_estimator"][i, k]
+
+        node_ids = node_ids.astype(int)
+
+        # Construct the covariance matrix for node-to-node measurements.
+        # (This includes the systematic component.)
+        C = np.eye(M) * (var_node_rand + var_node_sys)
+
         for j in range(M):
             for k in range(j + 1, M):
-                term = samples["rho_estimators"][i, a] * Sigma[j, j]**0.5 * Sigma[k, k]**0.5
-                Sigma[j, k] = term
-                Sigma[k, j] = term
-                a += 1
+                # Need the right index to match to rho_estimators.
+                l = rho_terms.index(tuple(node_ids[[j, k]]))
+                term = samples["rho_estimators"][i, l] * (C[j,j] * C[k,k])**0.5
+                C[j, k] = C[k, j] = term
 
+        # Gauss-Markov theorem.
         W = np.ones((M, 1))
-        Cinv = np.linalg.inv(Sigma)
-        var_min = 1.0/np.dot(np.dot(W.T, Cinv), W)
-        posterior[i] = var_min * np.dot(np.dot(W.T, Cinv), weighted_node_mu[:, i])
+        Cinv = np.linalg.inv(C)
+        var = 1.0/np.dot(np.dot(W.T, Cinv), W)
+        mu = var * np.dot(np.dot(W.T, Cinv), mu_node)
+
+        mu_samples[ii] = mu
+        var_samples[ii] = var
+
+    central = np.median(mu_samples)
+    error = np.sqrt(np.median(var_samples))
 
     if update_database:
 
         # Check if there is an entry for this (wg, cname) in the wg_recommended 
         # table
-        q = np.percentile(posterior, [16, 50, 84])
-        central, pos_error, neg_error = (q[0], q[2] - q[1], q[0] - q[1])
+        #q = np.percentile(posterior, [16, 50, 84])
+        #central, pos_error, neg_error = (q[1], q[2] - q[1], q[0] - q[1])
 
         data = {
             "wg": wg, 
             "cname": cname, 
             "snr": np.nanmedian(estimates["snr"]),
             parameter: central, 
-            "e_pos_{}".format(parameter): pos_error, 
-            "e_neg_{}".format(parameter): neg_error, 
-            "e_{}".format(parameter): np.abs([pos_error, neg_error]).max(),
+            #"e_pos_{}".format(parameter): pos_error, 
+            #"e_neg_{}".format(parameter): neg_error, 
+            #"e_{}".format(parameter): np.abs([pos_error, neg_error]).max(),
+            "e_{}".format(parameter): error,
             "nn_nodes_{}".format(parameter): len(set(estimates["node_id"])),
             "nn_spectra_{}".format(parameter): len(set(estimates["filename"])),
             "provenance_ids_for_{}".format(parameter): list(estimates["id"].data.astype(int))
@@ -214,7 +237,10 @@ def _homogenise_survey_measurements(database, wg, parameter, cname,
                 "Created new record {} in recommended_results ({} / {})"\
                 .format(new_record[0][0], wg, cname))
 
-    return posterior
+    return (mu_samples, var_samples)
+
+
+
 
 
 
@@ -386,7 +412,7 @@ class BaseEnsembleModel(object):
         return self._fit
 
 
-    def homogenise_star(self, cname, update_database=True):
+    def homogenise_star(self, cname, update_database=True, **kwargs):
         """
         Produce an unbiased estimate of an astrophyiscal parameter for a given
         survey object.
@@ -399,11 +425,12 @@ class BaseEnsembleModel(object):
         """
 
         return _homogenise_survey_measurements(
-            self._database, self._wg, self._parameter, cname, self._fit,
-            update_database=update_database)
+            self._database, self._wg, self._parameter, cname,
+            stan_chains=self._chains, stan_data=self._data,
+            update_database=update_database, **kwargs)
 
 
-    def homogenise_all_stars(self, update_database=True):
+    def homogenise_all_stars(self, **kwargs):
         """
         Homogenise the stellar astrophysical parameter for all stars in the
         database that are analysed by the current working group. 
@@ -417,7 +444,8 @@ class BaseEnsembleModel(object):
                     SELECT id FROM nodes WHERE wg = %s)
                 SELECT DISTINCT ON (r.cname) r.cname
                 FROM   s, results AS r
-            WHERE r.node_id = s.id""", (self._wg, ))
+            WHERE r.node_id = s.id
+            ORDER BY cname DESC""", (self._wg, ))
 
         # Get samples and data dictionary -- it will be faster.
         if self._chains is None:
@@ -430,18 +458,19 @@ class BaseEnsembleModel(object):
         N = len(records)
         for i, cname in enumerate(records["cname"]):
 
-            posterior = _homogenise_survey_measurements(
+            mu, var = _homogenise_survey_measurements(
                 self._database, self._wg, self._parameter, cname,
                 stan_chains=self._chains, stan_data=self._data,
-                update_database=update_database)
+                **kwargs)
+            pos_error = neg_error = np.median(var**0.5)
 
-            p = np.percentile(posterior, [16, 50, 84])
-            value, pos_error, neg_error = (p[1], p[2] - p[1], p[0] - p[1])
+            #p = np.percentile(posterior, [16, 50, 84])
+            #value, pos_error, neg_error = (p[1], p[2] - p[1], p[0] - p[1])
 
             logger.info("Homogenised {parameter} for {cname} (WG{wg} {i}/{N}): "
-                "{value:.2f} ({pos_error:.2f}, {neg_error:.2f})".format(
+                "{mu:.2f} ({pos_error:.2f}, {neg_error:.2f})".format(
                     parameter=self._parameter, cname=cname, wg=self._wg, i=i+1,
-                    N=N, value=value, pos_error=pos_error, neg_error=neg_error))
+                    N=N, mu=np.median(mu), pos_error=pos_error, neg_error=neg_error))
 
         if update_database:
             self._database.connection.commit()
