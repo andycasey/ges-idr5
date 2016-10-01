@@ -137,11 +137,15 @@ ALTER TABLE results ALTER COLUMN passed_quality_control SET DEFAULT true;
 
 DROP TABLE IF EXISTS recommended_results;
 CREATE TABLE recommended_results (
-    result_ids integer[] not null,
+    provenance_ids_for_teff integer[],
+    provenance_ids_for_logg integer[],
+    provenance_ids_for_feh integer[],
+    provenance_ids_for_mh integer[],
+    provenance_ids_for_xi integer[],
+    provenance_ids_for_alpha_fe integer[],    
 
     wg integer not null,
     cname char(16) not null,
-    provenance_setups char(255) not null,
     
     snr numeric,
 
@@ -152,6 +156,8 @@ CREATE TABLE recommended_results (
     
     teff numeric,
     e_teff numeric,
+    e_pos_teff numeric,
+    e_neg_teff numeric,
     nn_nodes_teff integer,
     nn_spectra_teff integer,
     enn_teff numeric,
@@ -160,6 +166,8 @@ CREATE TABLE recommended_results (
     
     logg numeric,
     e_logg numeric,
+    e_pos_logg numeric,
+    e_neg_logg numeric,
     nn_nodes_logg integer,
     nn_spectra_logg integer,
     enn_logg numeric,
@@ -169,34 +177,38 @@ CREATE TABLE recommended_results (
     
     feh numeric,
     e_feh numeric,
+    e_pos_feh numeric,
+    e_neg_feh numeric,
     nn_nodes_feh integer,
     nn_spectra_feh integer,
-    nn_feh integer,
     enn_feh numeric,
     nne_feh numeric,
     sys_err_feh numeric,
     
     xi numeric,
     e_xi numeric,
+    e_pos_xi numeric,
+    e_neg_xi numeric,
     nn_nodes_xi integer,
     nn_spectra_xi integer,
-    nn_xi integer,
     enn_xi numeric,
     nne_xi numeric,
     
     mh numeric,
     e_mh numeric,
+    e_pos_mh numeric,
+    e_neg_mh numeric,
     nn_nodes_mh integer,
     nn_spectra_mh integer,
-    nn_mh integer,
     enn_mh numeric,
     nne_mh numeric,
 
     alpha_fe numeric,
     e_alpha_fe numeric,
+    e_pos_alpha_fe numeric,
+    e_neg_alpha_fe numeric,
     nn_nodes_alpha_fe integer,
     nn_spectra_alpha_fe integer,
-    nn_alpha_fe integer,
     enn_alpha_fe numeric,
     nne_alpha_fe numeric,
 
@@ -211,6 +223,19 @@ CREATE TABLE recommended_results (
 );
 ALTER TABLE recommended_results ADD COLUMN id BIGSERIAL PRIMARY KEY;
 CREATE UNIQUE INDEX single_cname_result_per_wg ON recommended_results (wg, cname);
+
+ALTER TABLE recommended_results ADD CONSTRAINT teff_provenance_required
+    CHECK (teff = 'NaN' OR provenance_ids_for_teff is not null);
+ALTER TABLE recommended_results ADD CONSTRAINT logg_provenance_required
+    CHECK (logg = 'NaN' OR provenance_ids_for_logg is not null);
+ALTER TABLE recommended_results ADD CONSTRAINT feh_provenance_required
+    CHECK (feh = 'NaN' OR provenance_ids_for_feh is not null);
+ALTER TABLE recommended_results ADD CONSTRAINT mh_provenance_required
+    CHECK (mh = 'NaN' OR provenance_ids_for_mh is not null);
+ALTER TABLE recommended_results ADD CONSTRAINT xi_provenance_required
+    CHECK (xi = 'NaN' OR provenance_ids_for_xi is not null);
+ALTER TABLE recommended_results ADD CONSTRAINT alpha_fe_provenance_required
+    CHECK (alpha_fe = 'NaN' OR provenance_ids_for_alpha_fe is not null);    
 
 ALTER TABLE recommended_results ADD CONSTRAINT valid_e_teff_required
     CHECK ((e_teff > 0 AND e_teff is not null) OR teff = 'NaN');

@@ -38,7 +38,7 @@ def _guess_parameter_names(table, names):
 
 
 def _homogenise_survey_measurements(database, wg, parameter, cname, 
-    fitted_stan_model, update_database=False):
+    stan_model=None, stan_chains=None, stan_data=None, update_database=False):
     """
     Produce an unbiased estimate of an astrophyiscal parameter for a given
     survey object.
@@ -52,22 +52,40 @@ def _homogenise_survey_measurements(database, wg, parameter, cname,
     :param parameter:
         The name of the parameter to estimate.
 
-    :param fitted_stan_model:
-        The fitted Stan model.
+    :param stan_model: [optional]
+        The fitted Stan model. 
+
+        Either the fitted stan model must be provided, or the Stan chains and 
+        the data dictionary (`stan_chains` and `stan_data`) must be provided.
+
+    :param stan_chains: [optional]
+        The extracted samples (chains) from the sampled Stan model.
+
+        Either the `stan_model` must be provided, or the Stan chains and
+        the data dictionary (`stan_chains` and `stan_data`) must be provided.
+
+    :param stan_data: [optional]
+        The data dictionary provided to Stan.
+
+        Either the `stan_model` must be provided, or the Stan chains and
+        the data dictionary (`stan_chains` and `stan_data`) must be provided.    
     """
 
     # Get the data for this object.
     estimates = database.retrieve_table(
         """ SELECT  DISTINCT ON (filename, node_id)
-                    id, cname, node_id, snr, setup, {parameter}
+                    results.id, cname, node_id, snr, trim(filename) as filename, 
+                    {parameter}
             FROM    results, nodes
             WHERE   nodes.wg = {wg}
               AND   nodes.id = results.node_id
               AND   cname = '{cname}'
               AND   {parameter} <> 'NaN'
+              AND   passed_quality_control = true;
         """.format(wg=wg, cname=cname, parameter=parameter))
 
-    assert estimates is not None
+    if estimates is None:
+        return np.array([np.nan])
 
     # Extract N samples for all the parameters.
 
@@ -80,17 +98,18 @@ def _homogenise_survey_measurements(database, wg, parameter, cname,
     #   4. Draw from a Gaussian using the weighted means and your new Cov matrix
     #   5. Record the draw.
 
-    pars = [
-        "var_intrinsic",
-        "var_sys_estimator",
-        "alpha_sq",
-        "rho_estimators",
-        "c0_estimators"
-    ]
+    if stan_model is not None:
+        samples = stan_model.extract(
+            pars=set(stan_model.model_pars).difference(("Sigma", )))
+        unique_node_ids = stan_model.data["node_ids"]
 
-    samples = fitted_stan_model.extract(pars=pars)
+    elif stan_chains is not None and stan_data is not None:
+        samples, unique_node_ids = (stan_chains, stan_data["node_ids"])
 
-    unique_node_ids = fitted_stan_model.data["node_ids"]
+    else:
+        raise ValueError(
+            "stan_model must be provided, or stan_chains and stan_data")
+
     K = len(samples["var_intrinsic"])
 
     estimates = estimates.group_by("node_id")
@@ -103,7 +122,8 @@ def _homogenise_survey_measurements(database, wg, parameter, cname,
         k = np.where(estimates["node_id"][j] == unique_node_ids)[0][0]
 
         var_total[j, :] \
-            = samples["var_sys_estimator"][:, k] \
+            = samples["var_intrinsic"][k] \
+                + samples["var_sys_estimator"][:, k] \
                 + samples["alpha_sq"][:, k]/estimates["snr"][j]
                 
     # 2. Calculate the weighted mean from each node.
@@ -147,11 +167,53 @@ def _homogenise_survey_measurements(database, wg, parameter, cname,
         posterior[i] = var_min * np.dot(np.dot(W.T, Cinv), weighted_node_mu[:, i])
 
     if update_database:
-        #database.update(
-        #    """ UPDATE recommended_results
-        #           SET )
-    
-        raise a
+
+        # Check if there is an entry for this (wg, cname) in the wg_recommended 
+        # table
+        q = np.percentile(posterior, [16, 50, 84])
+        central, pos_error, neg_error = (q[0], q[2] - q[1], q[0] - q[1])
+
+        data = {
+            "wg": wg, 
+            "cname": cname, 
+            "snr": np.nanmedian(estimates["snr"]),
+            parameter: central, 
+            "e_pos_{}".format(parameter): pos_error, 
+            "e_neg_{}".format(parameter): neg_error, 
+            "e_{}".format(parameter): np.abs([pos_error, neg_error]).max(),
+            "nn_nodes_{}".format(parameter): len(set(estimates["node_id"])),
+            "nn_spectra_{}".format(parameter): len(set(estimates["filename"])),
+            "provenance_ids_for_{}".format(parameter): list(estimates["id"].data.astype(int))
+        }
+
+        record = database.retrieve(
+            """ SELECT id
+                  FROM recommended_results
+                 WHERE wg = %s
+                   AND cname = %s
+            """, (wg, cname, ))
+
+        if record:
+            database.update(
+                """ UPDATE recommended_results
+                       SET {}
+                     WHERE id = '{}'""".format(
+                        ", ".join([" = ".join([k, "%s"]) for k in data.keys()]),
+                        record[0][0]),
+                data.values())
+            logger.info(
+                "Updated record {} in recommended_results".format(record[0][0]))
+
+        else:
+            new_record = database.retrieve(
+                """ INSERT INTO recommended_results ({})
+                    VALUES ({}) RETURNING id""".format(
+                        ", ".join(data.keys()), ", ".join(["%s"] * len(data))),
+                data.values())
+            logger.info(
+                "Created new record {} in recommended_results ({} / {})"\
+                .format(new_record[0][0], wg, cname))
+
     return posterior
 
 
@@ -324,7 +386,7 @@ class BaseEnsembleModel(object):
         return self._fit
 
 
-    def homogenise_star(self, cname, update_database=False):
+    def homogenise_star(self, cname, update_database=True):
         """
         Produce an unbiased estimate of an astrophyiscal parameter for a given
         survey object.
@@ -341,27 +403,50 @@ class BaseEnsembleModel(object):
             update_database=update_database)
 
 
-    def homogenise_all_stars(self):
+    def homogenise_all_stars(self, update_database=True):
         """
         Homogenise the stellar astrophysical parameter for all stars in the
-        database that are analysed by the current working group. Note, this 
-        will only homogenise a single parameter for all survey objects.
+        database that are analysed by the current working group. 
+
+        Note: this will homogenise a single parameter for each survey object.
         """
 
         # Get all unique cnames.
-        results = self._database.retrieve_table(
+        records = self._database.retrieve_table(
             """ WITH s AS (
                     SELECT id FROM nodes WHERE wg = %s)
                 SELECT DISTINCT ON (r.cname) r.cname
                 FROM   s, results AS r
-                WHERE r.node_id = s.id""")
+            WHERE r.node_id = s.id""", (self._wg, ))
 
-        N = len(results)
-        for i, cname in enumerate(results["cname"]):
-            logger.info("Homogenising {} for {}/{} (WG{}): {}".format(
-                self._parameter, i + 1, N, self._wg, cname))
+        # Get samples and data dictionary -- it will be faster.
+        if self._chains is None:
+            ignore_model_pars = kwargs.get("__ignore_model_pars", ("Sigma", ))
+            model_pars = set(self._fit.model_pars).difference(ignore_model_pars)
+            self._chains = self._fit.extract(pars=model_pars)
 
-            raise a
+        assert self._data is not None
+
+        N = len(records)
+        for i, cname in enumerate(records["cname"]):
+
+            posterior = _homogenise_survey_measurements(
+                self._database, self._wg, self._parameter, cname,
+                stan_chains=self._chains, stan_data=self._data,
+                update_database=update_database)
+
+            p = np.percentile(posterior, [16, 50, 84])
+            value, pos_error, neg_error = (p[1], p[2] - p[1], p[0] - p[1])
+
+            logger.info("Homogenised {parameter} for {cname} (WG{wg} {i}/{N}): "
+                "{value:.2f} ({pos_error:.2f}, {neg_error:.2f})".format(
+                    parameter=self._parameter, cname=cname, wg=self._wg, i=i+1,
+                    N=N, value=value, pos_error=pos_error, neg_error=neg_error))
+
+        if update_database:
+            self._database.connection.commit()
+
+        return None
 
 
     def write(self, filename, overwrite=False, **kwargs):
@@ -393,7 +478,6 @@ class BaseEnsembleModel(object):
             state["chains"] = self._chains
 
         elif self._fit is not None:
-            
             # Extract chains.
             ignore_model_pars = kwargs.get("__ignore_model_pars", ("Sigma", ))
             model_pars = set(self._fit.model_pars).difference(ignore_model_pars)
@@ -471,6 +555,9 @@ class SingleParameterEnsembleModel(BaseEnsembleModel):
             calibrator should be included in the data for the model. This can
             be used to exclude specific calibrators during cross-validation
             tests.
+
+        :param sql_constraint: [optional]
+            Specify an optional SQL constraint to apply.
         """
 
         parameter = str(parameter or self._parameter).lower()
@@ -495,7 +582,11 @@ class SingleParameterEnsembleModel(BaseEnsembleModel):
                 FROM    s, n, results as r 
                 WHERE r.cname = s.cname 
                   AND r.node_id = n.id 
-                """.format(wg=self._wg, parameter=parameter))
+                  AND r.passed_quality_control = true {sql_constraint}
+                """.format(
+                    wg=self._wg, parameter=parameter,
+                    sql_constraint=""   if sql_constraint is None \
+                                        else " AND {}".format(sql_constraint)))
         assert data is not None, "No calibrator data from WG {}".format(wg)
 
         # Calibrator parameter name
