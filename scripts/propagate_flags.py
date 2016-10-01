@@ -23,6 +23,8 @@ logger = logging.getLogger("ges")
 with open("flags.yaml", "r") as fp:
     qc_flags = yaml.load(fp)
 
+raise a
+
 
 # Clear any previous propagations before starting.
 logger.info("Clearing previous propagations and setting all to have passed_quality_control = True")
@@ -83,7 +85,7 @@ database.connection.commit()
 
 
 # PROPAGATE BY SPECTRUM
-def propagate_by_spectrum(flag, constraint=None):
+def propagate_by_spectrum(flag, constraint=None, commit=False):
     
     constraint_str = "" if constraint is None else " AND {}".format(constraint)
     affected = database.retrieve_table(
@@ -133,6 +135,7 @@ def propagate_by_spectrum(flag, constraint=None):
                 logger.info("Propagated ({}/{}/{}) to {} other entries".format(
                     row["id"], matched_tech_flag, filename, n))    
 
+    if commit:
         database.connection.commit()
 
     return N
@@ -153,10 +156,11 @@ for key, value in qc_flags["propagate_flags_by_spectrum"].items():
         N_propagations.setdefault(flag, 0)
         N_propagations[flag] += propagate_by_spectrum(flag, constraint)
 
+database.connection.commit()
 
 
 # PROPAGATE BY CNAME
-def propagate_by_cname(flag, constraint=None):
+def propagate_by_cname(flag, constraint=None, commit=False):
 
     constraint_str = "" if constraint is None else " AND {}".format(constraint)
     affected = database.retrieve_table(
@@ -198,6 +202,7 @@ def propagate_by_cname(flag, constraint=None):
             logger.info("Propagated ({}/{}/{}) to {} other entries".format(
                 row["id"], matched_tech_flag, row["cname"], n))
 
+    if commit:
         database.connection.commit()
 
     return N
@@ -216,6 +221,8 @@ for key, value in qc_flags["propagate_flags_by_cname"].items():
         constraint = value.get("constraint", None)
         N_propagations.setdefault(flag, 0)
         N_propagations[flag] += propagate_by_cname(flag, constraint)
+
+database.connection.commit()
 
 
 # NODE-SPECIFIC FLAGS
@@ -257,4 +264,4 @@ for key, value in qc_flags["node_specific_flags"].items():
                 "Marked {} results as poor quality due to matching flag {} "\
                 "and constraint {}".format(N, flag, constraint))
 
-    database.connection.commit()
+database.connection.commit()
