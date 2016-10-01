@@ -167,6 +167,12 @@ class BaseEnsembleModel(object):
         self._calibrators = calibrators
 
         self._model = self._load_model(recompile, overwrite, **kwargs)
+
+        # For later.
+        self._data = None
+        self._fit = None
+        self._chains = None
+
         return None
 
 
@@ -254,7 +260,7 @@ class BaseEnsembleModel(object):
             try:
                 self._data 
             except AttributeError:
-                self._data = self._prepare_data()
+                self._data, self._metadata = self._prepare_data()
 
             kwds["data"] = self._data
 
@@ -318,7 +324,7 @@ class BaseEnsembleModel(object):
         return self._fit
 
 
-    def homogenise_survey_measurements(self, cname, update_database=False):
+    def homogenise_star(self, cname, update_database=False):
         """
         Produce an unbiased estimate of an astrophyiscal parameter for a given
         survey object.
@@ -335,6 +341,97 @@ class BaseEnsembleModel(object):
             update_database=update_database)
 
 
+    def homogenise_all_stars(self):
+        """
+        Homogenise the stellar astrophysical parameter for all stars in the
+        database that are analysed by the current working group. Note, this 
+        will only homogenise a single parameter for all survey objects.
+        """
+
+        # Get all unique cnames.
+        results = self._database.retrieve_table(
+            """ WITH s AS (
+                    SELECT id FROM nodes WHERE wg = %s)
+                SELECT DISTINCT ON (r.cname) r.cname
+                FROM   s, results AS r
+                WHERE r.node_id = s.id""")
+
+        N = len(results)
+        for i, cname in enumerate(results["cname"]):
+            logger.info("Homogenising {} for {}/{} (WG{}): {}".format(
+                self._parameter, i + 1, N, self._wg, cname))
+
+            raise a
+
+
+    def write(self, filename, overwrite=False, **kwargs):
+        """
+        Write the model to disk, including any MCMC chains and data dictionaries
+        from Stan.
+
+        :param filename:
+            The local path of where to write the model.
+
+        :param overwrite: [optional]
+            Overwrite the `filename` if it already exists.
+        """
+
+        if os.path.exists(filename) and not overwrite:
+            raise IOError(
+                "filename {} exists and not overwriting".format(filename))
+
+        state = {
+            "model_path": self._MODEL_PATH, 
+            "wg": self._wg,
+            "parameter": self._parameter,
+            "calibrators": self._calibrators,
+            "data": self._data,
+            "chains": None
+        }
+
+        if self._chains is not None:
+            state["chains"] = self._chains
+
+        elif self._fit is not None:
+            
+            # Extract chains.
+            ignore_model_pars = kwargs.get("__ignore_model_pars", ("Sigma", ))
+            model_pars = set(self._fit.model_pars).difference(ignore_model_pars)
+            self._chains = self._fit.extract(pars=model_pars)
+
+            state["chains"] = self._chains
+
+        with open(filename, "wb") as fp:
+            pickle.dump(state, fp, -1)
+
+        return None
+
+
+    @classmethod
+    def read(cls, filename, database, **kwargs):
+        """
+        Read a saved model from disk.
+
+        :param filename:
+            The local path of where the model is saved.
+
+        :param database:
+            The database connection that this model will use.
+        """
+
+        with open(filename, "rb") as fp:
+            state = pickle.load(fp)
+
+        klass = \
+            cls(database, state["wg"], state["parameter"], state["calibrators"],
+                **kwargs)
+
+        # Update the klass.
+        klass._data = state.get("data", None)
+        klass._chains = state.get("chains", None)
+
+        return klass
+
 
 class SingleParameterEnsembleModel(BaseEnsembleModel):
 
@@ -344,7 +441,7 @@ class SingleParameterEnsembleModel(BaseEnsembleModel):
 
     def _prepare_data(self, parameter=None, default_sigma_calibrator=1e3,
         fill_function=np.mean, fill_variance=1e50, require_no_gaps=False,
-        include_calibrator_function=None):
+        include_calibrator_function=None, sql_constraint=None):
         """
         Prepare the data for the model so that it can be supplied to Stan.
 
@@ -475,7 +572,7 @@ class SingleParameterEnsembleModel(BaseEnsembleModel):
                 continue
 
             calibrator_index[i] = j
-            spectrum_snr[i] = data["snr"][si]
+            spectrum_snr[i] = np.nanmedian(data["snr"][si:ei])
             if np.std(data["snr"][si:ei]) > 1:
                 logger.warn(
                     "Standard deviation in SNR for a single {} observation is {:.1f}: {}"\
@@ -543,5 +640,7 @@ class SingleParameterEnsembleModel(BaseEnsembleModel):
                 [node_names["name"][node_names["id"] == node_id][0].strip() \
                     for node_id in unique_estimators]
         }
-        return (data_dict, metadata)
+        result = (data_dict, metadata)
+        self._data, self._metadata = result
+        return result
 

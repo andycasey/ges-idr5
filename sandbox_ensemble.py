@@ -33,7 +33,7 @@ database = GESDatabase(**credentials)
 
 
 
-from code.model.ensemble import (NewEnsembleModel, SingleParameterEnsembleModel, MultipleParameterEnsembleModel, SingleParameterEnsembleModelWithCorrelations)
+from code.model.ensemble import  SingleParameterEnsembleModel
 
 benchmarks = Table.read("fits-templates/benchmarks/GES_iDR5_FGKMCoolWarm_Benchmarks_AcceptedParams_01082016.fits")
 
@@ -110,9 +110,9 @@ init = {
 op_params = model.optimize(data, init=init)
 """
 
-model = NewEnsembleModel(database, 10, benchmarks[benchmarks["TEFF"] < 8000])
+model = SingleParameterEnsembleModel(database, 10, "teff", benchmarks[benchmarks["TEFF"] < 8000])
 
-data, metadata = model._prepare_data("teff")
+data, metadata = model._prepare_data()
 
 var_intrinsic = 100**2
 init = {
@@ -126,8 +126,10 @@ init = {
 
 op_params = model.optimize(data, init=init)
 
-fit = model.sample(data, init=op_params)
+fit = model.sample(data, init=op_params, iter=10)
+raise a
 
+model.homog
 
 
 
