@@ -5,3 +5,4 @@ node-results/
 figures/
 
 code/model/*.compiled
+*.model
