@@ -50,11 +50,11 @@ data {
 
     // Spectroscopic estimates 
     //      the estimates provided by the estimators (nodes)
-    matrix[N_calibrators, N_nodes, max_visits] estimates;            
-    matrix[N_calibrators, N_nodes, max_visits] var_additive;
+    matrix[N_nodes, max_visits] estimates[N_calibrators];
+    matrix[N_nodes, max_visits] var_additive[N_calibrators];
 
     // Inverse variance (SNR**-2) of the spectrum
-    vector[N_calibrators, N_nodes, max_visits] ivar_spectrum;     
+    matrix[N_nodes, max_visits] ivar_spectrum[N_calibrators];
 }
 
 transformed data {
@@ -79,44 +79,49 @@ parameters {
     vector[N_calibrators] truths;
 }
 
-model {
+transformed parameters {
+    vector[N_nodes] mean_mu[N_calibrators];
+    cov_matrix[N_nodes] Sigma[N_calibrators];
 
     // For each calibrator, calculate the weighted mean from each node.
     for (i in 1:N_calibrators) {
         int a;
-        vector mean_mu[N_nodes];
-        cov_matrix[N_nodes] Sigma;
-
+        
         for (j in 1:N_nodes) {
-            int K;
-            K = N_visits[i, j];
+            int V;
+            V = N_visits[i, j];
 
-            if (K > 0) {
+            if (V > 0) {
                 // Calculate weights.
-                real weights[K];
+                row_vector[V] weights;
 
-                weights = 1.0/(alpha_sq[j] * ivar_spectrum[i, j, 1:K]);
-                mean_mu[j] = sum(weights * estimates[i, j, 1:K])/sum(weights);
-                Sigma[j, j] = 1.0/sum(weights) + var_sys_estimator[j];
+                for (v in 1:V)
+                    weights[v] = 1.0/(alpha_sq[j] * ivar_spectrum[i, j, v]);
+
+                mean_mu[i, j] = sum(weights .* estimates[i, j, 1:V])/sum(weights);
+                Sigma[i, j, j] = 1.0/sum(weights) + var_sys_estimator[j];
             }
         }
 
         a = 0;
         for (j in 1:N_nodes) {
             for (k in j + 1:N_nodes) {
-                Sigma[j, k] = rho_estimators[a] * sqrt(Sigma[j, j] * Sigma[k, k]);
-                Sigma[k, j] = rho_estimators[a] * sqrt(Sigma[j, j] * Sigma[k, k]);
+                Sigma[i, j, k] = rho_estimators[a] * sqrt(Sigma[i, j, j] * Sigma[i, k, k]);
+                Sigma[i, k, j] = rho_estimators[a] * sqrt(Sigma[i, j, j] * Sigma[i, k, k]);
                 a = a + 1;
             }
             if (N_visits[i, j] == 0) {
-                Sigma[j, :] = rep_vector(0.0, N_nodes)';
-                Sigma[:, j] = rep_vector(0.0, N_nodes);
-                Sigma[j, j] = 1e50;
+                Sigma[i, j, :] = rep_vector(0.0, N_nodes)';
+                Sigma[i, :, j] = rep_vector(0.0, N_nodes);
+                Sigma[i, j, j] = 1e50;
             }
         }
-
-        mean_mu ~ normal(rep_vector(truths[i], N_nodes) - bias, Sigma);
     }
+}
+
+model {
+    for (i in 1:N_calibrators)
+        mean_mu[i] ~ multi_normal(rep_vector(truths[i], N_nodes) - bias, Sigma[i]);
 }
 
 generated quantities {
