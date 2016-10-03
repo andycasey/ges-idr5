@@ -11,6 +11,8 @@ import pystan as stan
 from astropy.table import Table
 from itertools import combinations
 
+from . import plot
+
 logger = logging.getLogger("ges")
 
 
@@ -39,7 +41,7 @@ def _guess_parameter_names(table, names):
 
 
 def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
-    stan_model=None, stan_chains=None, stan_data=None, update_database=False):
+    stan_model=None, stan_chains=None, stan_data=None, update_database=True):
     """
     Produce an unbiased estimate of an astrophyiscal parameter for a given
     survey object.
@@ -412,7 +414,7 @@ class BaseEnsembleModel(object):
         return self._fit
 
 
-    def homogenise_star(self, cname, update_database=True, **kwargs):
+    def homogenise_star(self, cname, **kwargs):
         """
         Produce an unbiased estimate of an astrophyiscal parameter for a given
         survey object.
@@ -427,7 +429,7 @@ class BaseEnsembleModel(object):
         return _homogenise_survey_measurements(
             self._database, self._wg, self._parameter, cname,
             stan_chains=self._chains, stan_data=self._data,
-            update_database=update_database, **kwargs)
+            **kwargs)
 
 
     def homogenise_all_stars(self, **kwargs):
@@ -472,7 +474,7 @@ class BaseEnsembleModel(object):
                     parameter=self._parameter, cname=cname, wg=self._wg, i=i+1,
                     N=N, mu=np.median(mu), pos_error=pos_error, neg_error=neg_error))
 
-        if update_database:
+        if kwargs.get("update_database", True):
             self._database.connection.commit()
 
         return None
@@ -500,6 +502,7 @@ class BaseEnsembleModel(object):
             "parameter": self._parameter,
             "calibrators": self._calibrators,
             "data": self._data,
+            "metadata": self._metadata,
             "chains": None
         }
 
@@ -541,9 +544,14 @@ class BaseEnsembleModel(object):
 
         # Update the klass.
         klass._data = state.get("data", None)
+        klass._metadata = state.get("metadata", None)
         klass._chains = state.get("chains", None)
 
         return klass
+
+
+    def node_uncertainty_with_snr(self, **kwargs):
+        return plot.node_uncertainty_with_snr(self, **kwargs)
 
 
 class SingleParameterEnsembleModel(BaseEnsembleModel):
@@ -554,7 +562,8 @@ class SingleParameterEnsembleModel(BaseEnsembleModel):
 
     def _prepare_data(self, parameter=None, default_sigma_calibrator=1e3,
         fill_function=np.mean, fill_variance=1e50, require_no_gaps=False,
-        include_calibrator_function=None, sql_constraint=None):
+        minimum_snr=1, maximum_snr=500, include_calibrator_function=None, 
+        sql_constraint=None):
         """
         Prepare the data for the model so that it can be supplied to Stan.
 
@@ -719,10 +728,12 @@ class SingleParameterEnsembleModel(BaseEnsembleModel):
 
         # Only keep entries where we have *any* finite estimates.
         # This should also remove any skipped calibrators.
-        keep = np.all(np.isfinite(estimates), axis=1)
+        keep = np.all(np.isfinite(estimates), axis=1) \
+            * (spectrum_snr >= minimum_snr) \
+            * (maximum_snr >= spectrum_snr)
         
         # Ensure spectrum_snr values are valid.
-        spectrum_snr[spectrum_snr < 1] = 1
+        #spectrum_snr = np.clip(spectrum_snr, minimum_snr, maximum_snr)
         data_dict.update({
             "ivar_spectrum": (1.0/spectrum_snr[keep])**2,
             "N_calibrator_visits": sum(keep),

@@ -72,11 +72,11 @@ transformed data {
 
 parameters {
     // Intrinsic uncertainty in the model
-    real<lower=0> var_intrinsic;
+    //real<lower=0> var_intrinsic;
 
     // Uncertainty from each estimator
     //      alpha_sq is alpha**2, where \sigma_rand = alpha/SNR
-    vector<lower=100>[N_estimators] alpha_sq;
+    vector<lower=1>[N_estimators] alpha_sq;
     //      systematic variance in a given estimator (node)
     vector<lower=0>[N_estimators] var_sys_estimator;
 
@@ -102,12 +102,12 @@ transformed parameters {
             for (j in 1:N_estimators) {
                 for (k in j:N_estimators) {
                     sigma_j = sqrt(
-                        var_intrinsic + 
+                        //var_intrinsic + 
                         var_sys_estimator[j] + 
                         alpha_sq[j] * ivar_spectrum[i]);
 
                     sigma_k = sqrt(
-                        var_intrinsic +
+                        //var_intrinsic +
                         var_sys_estimator[k] + 
                         alpha_sq[k] * ivar_spectrum[i]);
 
@@ -135,6 +135,7 @@ transformed parameters {
 }
 
 model {
+    alpha_sq ~ normal(1000, 500);
     mu_calibrator ~ normal(to_vector(truths), sigma_calibrator); 
     for (i in 1:N_calibrator_visits) {
         estimates[i] ~ multi_normal(
