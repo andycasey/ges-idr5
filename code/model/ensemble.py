@@ -554,6 +554,109 @@ class BaseEnsembleModel(object):
         return plot.node_uncertainty_with_snr(self, **kwargs)
 
 
+
+
+class MeanEnsembleModel(BaseEnsembleModel):
+
+    _MODEL_PATH = os.path.join(
+        os.path.dirname(os.path.realpath(__file__)),
+        "mean-ensemble-model-with-correlations.stan")
+
+    def _prepare_data(self, parameter=None, default_sigma_calibrator=1e3,
+        fill_function=np.mean, fill_variance=1e50, require_no_gaps=False,
+        minimum_snr=1, maximum_snr=500, include_calibrator_function=None,
+        sql_constraint=None):
+        """
+        Prepare the data for the model so that it can be supplied to Stan.
+
+        """        
+        parameter = str(parameter or self._parameter).lower()
+        if parameter not in ("teff", "logg", "feh", "xi", "mh"):
+            raise AreYouSureYouKnowWhatYoureDoing
+
+        # Get the data from the database for this WG.
+        # TODO: Need a better way to identify calibrators. Right now we do it
+        #       just on GES_TYPE, but in future we may want to do this directly
+        #       on to CNAMEs in the calibrator list.
+        data = self._database.retrieve_table(
+            """ WITH    n AS (
+                            SELECT id FROM nodes WHERE wg = {wg}), 
+                        s AS (
+                            SELECT cname, ges_type, ges_fld
+                            FROM spectra
+                            WHERE ges_type LIKE 'GE_SD_B%') 
+                SELECT DISTINCT ON (r.filename, r.node_id) 
+                    s.cname, s.ges_type, s.ges_fld,
+                    r.filename, r.node_id, r.snr,
+                    r.{parameter}, r.e_{parameter}
+                FROM    s, n, results as r 
+                WHERE r.cname = s.cname 
+                  AND r.node_id = n.id 
+                  AND r.passed_quality_control = true {sql_constraint}
+                """.format(
+                    wg=self._wg, parameter=parameter,
+                    sql_constraint=""   if sql_constraint is None \
+                                        else " AND {}".format(sql_constraint)))
+        assert data is not None, "No calibrator data from WG {}".format(wg)
+
+        # Calibrator parameter name
+        calibrator_name, calibrator_e_name = _guess_parameter_name(
+            self._calibrators, parameter)
+
+        finite_calibrator = np.isfinite(self._calibrators[calibrator_name])
+        if not np.all(finite_calibrator):
+            logger.warn("Not all calibrator values of {} are finite! ({}/{})"\
+                .format(parameter, sum(finite_calibrator), len(finite_calibrator)))
+
+        calibrators = self._calibrators[finite_calibrator]
+        if include_calibrator_function is not None:
+            keep = np.array([include_calibrator_function(row) for row in calibrators])
+            logger.info(
+                "Excluded {} calibrators based on include_calibrator_function"\
+                .format(len(keep) - sum(keep)))
+            calibrators = calibrators[keep]
+
+        N_calibrators = len(calibrators)
+        N_estimators = len(set(data["node_id"]))
+        data_dict = {
+            "N_calibrators": N_calibrators,
+            "N_estimators": N_estimators,
+            "mu_calibrator": np.array(calibrators[calibrator_name]),
+            "sigma_calibrator": np.array(calibrators[calibrator_e_name]),
+        }
+
+        # Check the data so far.
+        if 1 > N_calibrators:
+            raise ValueError("no calibrators")
+
+        if 1 > N_estimators:
+            raise ValueError("no estimators")
+
+        if not np.all(np.isfinite(data_dict["sigma_calibrator"])):
+            logger.warn(
+                "Not all finite calibrator entries of {} have finite errors! " \
+                "Setting default sigma_calibrator as {}".format(
+                    parameter, default_sigma_calibrator))
+            finite = np.isfinite(data_dict["sigma_calibrator"])
+            data_dict["sigma_calibrator"][~finite] = default_sigma_calibrator
+
+        # OK now update the data dictionary with the spectroscopic measurements.
+        # Need to group by node id and CNAME.
+        unique_calibrators = np.array(map(str.strip, calibrators["GES_FLD"]))
+        unique_estimators = np.sort(np.unique(data["node_id"]))
+
+
+        raise a
+
+
+
+
+
+
+
+
+
+
 class SingleParameterEnsembleModel(BaseEnsembleModel):
 
     _MODEL_PATH = os.path.join(
