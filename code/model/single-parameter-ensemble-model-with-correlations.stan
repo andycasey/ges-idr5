@@ -39,6 +39,8 @@ functions {
 }
 
 data {
+    real lower_alpha;
+    real upper_alpha;
     int<lower=1> N_estimators;          // number of estimators (nodes)
     int<lower=1> N_calibrators;         // number of calibration objects
     int<lower=1> N_calibrator_visits;   // number of measurements (or visits) of calibration objects
@@ -75,10 +77,8 @@ parameters {
     //real<lower=0> var_intrinsic;
 
     // Uncertainty from each estimator
-    //      alpha_sq is alpha**2, where \sigma_rand = alpha/SNR
-    // This sets a lower precision bound of 100 K at S/N ~ 1,
-    // and an upper precision bound of 1000 at S/N ~ 1.
-    vector<lower=100,upper=1000>[N_estimators] alpha;
+    //      alpha_sq is alpha**2, where \sigma_rand = alpha/sqrt(SNR)
+    vector<lower=lower_alpha,upper=upper_alpha>[N_estimators] alpha;
     //      systematic variance in a given estimator (node)
     vector<lower=0>[N_estimators] var_sys_estimator;
 

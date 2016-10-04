@@ -550,9 +550,12 @@ class BaseEnsembleModel(object):
         return klass
 
 
-    def node_uncertainty_with_snr(self, **kwargs):
+    def plot_node_uncertainty_with_snr(self, **kwargs):
         return plot.node_uncertainty_with_snr(self, **kwargs)
 
+
+    def plot_node_correlations(self, **kwargs):
+        return plot.node_correlations(self, **kwargs)
 
 
 
@@ -902,6 +905,14 @@ class SingleParameterEnsembleModel(BaseEnsembleModel):
             "Sigma_c0": Sigma_c0,
             "Sigma_c1": Sigma_c1
         })
+
+        alpha_bounds = {
+            "teff": (100, 1000),
+            "logg": (0.1, 1),
+            "feh": (0.1, 1),
+        }
+        data_dict.update(
+            dict(zip(("lower_alpha", "upper_alpha"), alpha_bounds[parameter])))
 
         # Create additional metadata
         node_names = self._database.retrieve_table("SELECT * FROM nodes")

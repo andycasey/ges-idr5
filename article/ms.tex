@@ -1,0 +1,112 @@
+%% Copyright 2016 Andrew R. Casey.  All rights reserved.
+
+\documentclass[preprint]{aastex}
+
+\usepackage{amsmath}
+\usepackage{bm}
+
+\IfFileExists{vc.tex}{\input{vc.tex}}{\newcommand{\githash}{UNKNOWN}\newcommand{\giturl}{UNKNOWN}}
+
+\newcommand{\acronym}[1]{{\small{#1}}}
+
+\newcommand{\project}[1]{\textsl{#1}}
+
+\newcommand{\teff}{T_{\mathrm{eff}}}
+\newcommand{\logg}{\log g}
+\newcommand{\feh}{[\mathrm{Fe/H}]}
+
+
+\begin{document}
+\title{The Gaia-ESO Survey: Combined estimates from multiple stellar analysis pipelines}
+
+\author{
+    Andrew~R.~Casey\altaffilmark{1}
+}
+
+
+\begin{abstract}
+  Some stuff
+\end{abstract}
+
+
+\keywords{stars: fundamental parameters --- stars: abundances
+% Clear rest of page
+\clearpage}
+
+
+\section{Introduction} 
+\label{sec:introduction}
+
+
+\section{Data}
+\label{sec:data}
+
+% Description of the setups
+
+% Summary of the ges type and SNR of the data.
+
+% Description of target sources included: MW, Clusters, CoRot, K2, etc.
+
+% Blind test.
+
+\section{Methods}
+\label{sec:methods}
+
+% Multiple analysis strategy: why
+
+% primary advantage and disadvantage to multiple analysis strategy
+
+% Description of two parameter rounds: stellar parameters, abundances
+
+% What's reported by each node? Flags? Consistency of flags?
+
+% Description of pipelines in appendix 
+
+% Commonalities between nodes: model atmospheres, line list, normalized spectra, initial params, spectrum library, xi calibration if necessary.
+
+
+
+% EW method and comparisons -- into an appendix?.
+
+
+% What do the nodes provide? Most parameters, flags, etc.
+
+
+% CONTINUE from here:
+% Stellar parameter determination
+
+
+% Stellar parameter homogenisation
+
+% Abundance determination
+
+% Abundance homogenisation
+
+
+\section{Discussion}
+\label{sec:discussion}
+
+% Is the multiple-analysis strategy justified?
+% --> Take any one node, infer their uncertainties as a function of SNR using point-wise correlations (e.g., no benchmarks).
+% --> What goes wrong for each node?
+
+% Precision, accuracy, systematics.
+% EW
+
+
+% Analysis choices: we give same line list but not all are used.
+%                   or how they are used.
+
+ 
+
+
+
+\section{Conclusions}
+\label{sec:conclusions}
+
+% This should be a "lessons learned" list.
+
+% The final paragraph should contain a succint forward outlook of how good or bad an idea this was.
+
+
+\end{document}
