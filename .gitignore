@@ -6,3 +6,11 @@ figures/
 
 code/model/*.compiled
 *.model
+
+*.png
+*.pdf
+
+article/vc.tex
+article/ms.aux
+article/ms.log
+article/ms.pdf

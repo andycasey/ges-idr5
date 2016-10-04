@@ -177,7 +177,7 @@ def node_uncertainty_with_snr(model, quartiles=[2.5, 50, 97.5], N=1000,
     ax.set_ylabel(ylabel)
 
     if ylims is None:
-        default_ylims = dict(teff=(0, 500), logg=(0, 0.5), feh=(0, 0.5))
+        default_ylims = dict(teff=(0, 500), logg=(0, 1), feh=(0, 0.5))
         ylims = default_ylims.get(model._parameter, None)
 
     ax.set_ylim(ylims)
@@ -338,5 +338,4 @@ def node_correlations(model, reorder=True, plot_edges=True,
     ])
     plt.show()
 
-    raise a
     return fig
