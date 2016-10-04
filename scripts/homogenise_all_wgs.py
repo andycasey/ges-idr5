@@ -27,7 +27,7 @@ database = GESDatabase(**credentials)
 # Only use "benchmarks" with TEFF < 8000 K
 benchmarks = Table.read("fits-templates/benchmarks/GES_iDR5_FGKM_Benchmarks_ARC_29092016.fits")
 benchmarks = benchmarks[benchmarks["TEFF"] < 8000]
-benchmarks["E_FEH"] = 0.15
+benchmarks["E_FEH"] = 0.10
 
 model_paths = "homogenisation-wg{wg}-{parameter}.model"
 
@@ -48,8 +48,6 @@ for wg in wgs:
     for parameter, scale in parameter_scales.items():
 
         model_path = model_paths.format(wg=wg, parameter=parameter)
-
-        if wg == 11 and parameter == "teff": continue
 
         if os.path.exists(model_path):
             model = SingleParameterEnsembleModel.read(model_path, database)
@@ -78,7 +76,7 @@ for wg in wgs:
         fig.savefig("wg{}-{}-node-correlations.pdf".format(wg, parameter))
 
         fig = model.plot_node_uncertainty_with_snr(
-            show_data_points=False, legend_kwds=dict(ncols=2))
+            show_data_points=False, legend_kwds=dict(ncol=2))
         fig.savefig("wg{}-{}-node-uncertainties.pdf".format(wg, parameter))
 
         continue
