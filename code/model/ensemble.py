@@ -604,9 +604,10 @@ class MeanEnsembleModel(BaseEnsembleModel):
             self._calibrators, parameter)
 
         # Match calibrators to data.
+        data_ges_flds = map(str.strip, data["ges_fld"])
         common_ges_flds \
-            = set(data["ges_fld"]).intersection(self._calibrators["GES_FLD"])
-        keep = np.array([each in common_ges_flds for each in data["ges_fld"]])
+            = set(data_ges_flds).intersection(self._calibrators["GES_FLD"])
+        keep = np.array([each in common_ges_flds for each in data_ges_flds])
         data = data[keep]
 
         unique_cnames = np.sort(np.unique(data["cname"]))
