@@ -592,7 +592,9 @@ class MeanEnsembleModel(BaseEnsembleModel):
                 FROM    s, n, results as r 
                 WHERE r.cname = s.cname 
                   AND r.node_id = n.id 
-                  AND r.passed_quality_control = true {sql_constraint}
+                  AND r.{parameter} <> 'NaN'
+                  AND r.passed_quality_control
+                      {sql_constraint}
                 """.format(
                     wg=self._wg, parameter=parameter,
                     sql_constraint=""   if sql_constraint is None \
@@ -604,29 +606,30 @@ class MeanEnsembleModel(BaseEnsembleModel):
             self._calibrators, parameter)
 
         # Match calibrators to data.
-        data_ges_flds = map(str.strip, data["ges_fld"])
-        common_ges_flds \
-            = set(data_ges_flds).intersection(self._calibrators["GES_FLD"])
+        data_ges_flds = np.array(map(str.strip, data["ges_fld"]))
+        calibrator_ges_flds = np.array(map(str.strip, self._calibrators["GES_FLD"]))
+        common_ges_flds = set(data_ges_flds).intersection(calibrator_ges_flds)
         keep = np.array([each in common_ges_flds for each in data_ges_flds])
         data = data[keep]
 
         unique_cnames = np.sort(np.unique(data["cname"]))
         unique_node_ids = np.sort(np.unique(data["node_id"]))
-        calibrator_indices = np.nan * np.ones(len(unique_cnames))
+        calibrator_indices = np.ones(len(unique_cnames))
 
         for i, cname in enumerate(unique_cnames):
 
-            ges_fld = data["ges_fld"][data["cname"] == cname][0]
-            match = (ges_fld == self._calibrators["GES_FLD"][i])
+            ges_fld = data["ges_fld"][data["cname"] == cname][0].strip()
+            match = (ges_fld == calibrator_ges_flds)
             calibrator_indices[i] = np.where(match)[0][0]
 
-        calibrators = self._calibrators[calibrator_indices]
+        calibrators = self._calibrators[calibrator_indices.astype(int)]
         
         data = data.group_by(["cname", "node_id"])
 
         # Get the maximum number of visits per calibrator.
         max_visits = max(map(len, data.groups))
 
+        N_calibrators, N_nodes = len(unique_cnames), len(unique_node_ids)
         shape = (N_calibrators, N_nodes, max_visits)
         estimates = np.zeros(shape)
         ivar_spectrum = np.zeros(shape)
@@ -644,28 +647,23 @@ class MeanEnsembleModel(BaseEnsembleModel):
 
             snr = np.clip(data["snr"][si:ei], 1, np.inf)
             ivar_spectrum[j, k, :N] = 1.0/snr**2
-
             estimates[j, k, :N] = data[parameter][si:ei]
 
-
-        N_calibrators, N_nodes = len(unique_cnames), len(unique_node_ids)
         data_dict = {
             "N_calibrators": N_calibrators,
             "N_nodes": N_nodes,
-            "N_visits": N_visits,
+            "N_visits": N_visits.astype(int),
             "max_visits": max_visits,
             
             "mu_calibrator": np.array(calibrators[calibrator_name]),
             "sigma_calibrator": np.array(calibrators[calibrator_e_name]),
-
 
             "ivar_spectrum": ivar_spectrum,
             "estimates": estimates,
 
             # Include the node_ids so that we will absolutely have them when we
             # try to run the homogenisation.
-            "node_ids": unique_node_ids,
-            "calibrator_cnames": unique_cnames,
+            "node_ids": unique_node_ids
         }
         if not np.all(np.isfinite(data_dict["sigma_calibrator"])):
             logger.warn(
@@ -681,7 +679,7 @@ class MeanEnsembleModel(BaseEnsembleModel):
         metadata = {
             "N_pairwise_nodes": np.math.factorial(N_nodes) \
                 / (2*np.math.factorial(max(1, N_nodes - 2))),
-            "calibrator_ges_fld": calibrators["ges_fld"],
+            "calibrator_ges_fld": calibrators["GES_FLD"],
             "node_ids": unique_node_ids,
             "node_names": \
                 [node_names["name"][node_names["id"] == node_id][0].strip() \

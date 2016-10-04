@@ -64,7 +64,7 @@ transformed data {
 parameters {
     // Uncertainty from each estimator
     //      alpha_sq is alpha**2, where \sigma_rand = alpha/SNR
-    vector<lower=1>[N_nodes] alpha_sq;
+    vector<lower=0>[N_nodes] alpha_sq;
     //      systematic variance in a given estimator (node)
     vector<lower=0>[N_nodes] var_sys_estimator;
 
@@ -78,14 +78,17 @@ parameters {
     vector[N_calibrators] truths;
 }
 
-transformed parameters {
-    vector[N_nodes] mean_mu[N_calibrators];
+model {
     cov_matrix[N_nodes] Sigma[N_calibrators];
+    truths ~ normal(mu_calibrator, sigma_calibrator);
+
 
     // For each calibrator, calculate the weighted mean from each node.
     for (i in 1:N_calibrators) {
         int a;
-        
+        real value;
+        vector[N_nodes] mean_mu;
+
         for (j in 1:N_nodes) {
             int V;
             V = N_visits[i, j];
@@ -97,12 +100,13 @@ transformed parameters {
                 for (v in 1:V)
                     weights[v] = 1.0/(alpha_sq[j] * ivar_spectrum[i, j, v]);
 
-                mean_mu[i, j] = sum(weights .* estimates[i, j, 1:V])/sum(weights);
-                Sigma[i, j, j] = 1.0/sum(weights) + var_sys_estimator[j];
+                mean_mu[j] = sum(weights .* estimates[i, j, 1:V])/sum(weights);
+                Sigma[i, j, j] = var_sys_estimator[j];
+                print("check ", i, " and ", j, " and ", weights); 
             }
         }
 
-        a = 0;
+        a = 1;
         for (j in 1:N_nodes) {
             for (k in j + 1:N_nodes) {
                 Sigma[i, j, k] = rho_estimators[a] * sqrt(Sigma[i, j, j] * Sigma[i, k, k]);
@@ -110,20 +114,22 @@ transformed parameters {
                 a = a + 1;
             }
             if (N_visits[i, j] == 0) {
+                mean_mu[j] = mean(truths);
                 Sigma[i, j, :] = rep_vector(0.0, N_nodes)';
                 Sigma[i, :, j] = rep_vector(0.0, N_nodes);
-                Sigma[i, j, j] = 1e50;
+                Sigma[i, j, j] = 1e10;
             }
         }
 
-        mean_mu[i] = mean_mu[i] + bias;
+        //mean_mu[i] = mean_mu[i];
+        value = multi_normal_log(mean_mu[i], rep_vector(truths[i], N_nodes), Sigma[i]);
+
+        print("i = ", i, " ", mean_mu[i], " and ", truths[i], " and ", value);
+        increment_log_prob(value);
+        //mean_mu[i] ~ multi_normal(rep_vector(truths[i], N_nodes), Sigma[i]);
     }
 }
 
-model {
-    for (i in 1:N_calibrators)
-        mean_mu[i] ~ multi_normal(rep_vector(truths[i], N_nodes), Sigma[i]);
-}
 
 generated quantities {
     // For convenience.

@@ -43,16 +43,12 @@ model = MeanEnsembleModel(database, 11, "teff", benchmarks[benchmarks["TEFF"] < 
 
 data, metadata = model._prepare_data()
 
-raise a
-
-var_intrinsic = 100**2
 init = {
     "truths": data["mu_calibrator"],
-    "var_intrinsic": var_intrinsic**2,
-    "var_sys_estimator": var_intrinsic**2 * np.ones(data["N_estimators"]),
-    "alpha_sq": 1000 * np.ones(data["N_estimators"]),
-    "rho_estimators": np.zeros(metadata["N_pairwise_estimators"]),
-    "c0_estimators": np.zeros(data["N_estimators"])
+    "var_sys_estimator": 100**2 * np.ones(data["N_nodes"]),
+    "alpha_sq": np.ones(data["N_nodes"]),
+    "rho_estimators": np.zeros(metadata["N_pairwise_nodes"]),
+    "bias": np.zeros(data["N_nodes"])
 }
 
 op_params = model.optimize(data, init=init)
