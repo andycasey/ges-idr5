@@ -41,7 +41,7 @@ functions {
 data {
     int<lower=1> N_nodes;                           // number of estimators (nodes)
     int<lower=1> N_calibrators;                     // number of calibration objects
-    int<lower=1> N_visits[N_calibrators, N_nodes];  // number of visits per calibrator.
+    int<lower=0> N_visits[N_calibrators, N_nodes];  // number of visits per calibrator.
     int max_visits;
 
     // Non-spectroscopic (or high fidelity unbiased) measurements
@@ -51,7 +51,6 @@ data {
     // Spectroscopic estimates 
     //      the estimates provided by the estimators (nodes)
     matrix[N_nodes, max_visits] estimates[N_calibrators];
-    matrix[N_nodes, max_visits] var_additive[N_calibrators];
 
     // Inverse variance (SNR**-2) of the spectrum
     matrix[N_nodes, max_visits] ivar_spectrum[N_calibrators];
@@ -116,12 +115,14 @@ transformed parameters {
                 Sigma[i, j, j] = 1e50;
             }
         }
+
+        mean_mu[i] = mean_mu[i] + bias;
     }
 }
 
 model {
     for (i in 1:N_calibrators)
-        mean_mu[i] ~ multi_normal(rep_vector(truths[i], N_nodes) - bias, Sigma[i]);
+        mean_mu[i] ~ multi_normal(rep_vector(truths[i], N_nodes), Sigma[i]);
 }
 
 generated quantities {

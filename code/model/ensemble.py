@@ -564,7 +564,7 @@ class MeanEnsembleModel(BaseEnsembleModel):
 
     def _prepare_data(self, parameter=None, default_sigma_calibrator=1e3,
         fill_function=np.mean, fill_variance=1e50, require_no_gaps=False,
-        minimum_snr=1, maximum_snr=500, include_calibrator_function=None,
+        minimum_snr=1, maximum_snr=500, 
         sql_constraint=None):
         """
         Prepare the data for the model so that it can be supplied to Stan.
@@ -603,35 +603,63 @@ class MeanEnsembleModel(BaseEnsembleModel):
         calibrator_name, calibrator_e_name = _guess_parameter_name(
             self._calibrators, parameter)
 
-        finite_calibrator = np.isfinite(self._calibrators[calibrator_name])
-        if not np.all(finite_calibrator):
-            logger.warn("Not all calibrator values of {} are finite! ({}/{})"\
-                .format(parameter, sum(finite_calibrator), len(finite_calibrator)))
+        # Match calibrators to data.
+        unique_cnames = np.sort(np.unique(data["cname"]))
+        unique_node_ids = np.sort(np.unique(data["node_id"]))
 
-        calibrators = self._calibrators[finite_calibrator]
-        if include_calibrator_function is not None:
-            keep = np.array([include_calibrator_function(row) for row in calibrators])
-            logger.info(
-                "Excluded {} calibrators based on include_calibrator_function"\
-                .format(len(keep) - sum(keep)))
-            calibrators = calibrators[keep]
+        calibrator_indices = np.nan * np.ones(len(unique_cnames))
+        for i, cname in enumerate(unique_cnames):
 
-        N_calibrators = len(calibrators)
-        N_estimators = len(set(data["node_id"]))
+            match = (data["ges_fld"] == self._calibrators["GES_FLD"][i])
+            calibrator_indices[i] = np.where(match)[0][0]
+
+        calibrators = self._calibrators[calibrator_indices]
+        
+
+        data = data.group_by(["cname", "node_id"])
+
+        # Get the maximum number of visits per calibrator.
+        max_visits = max(map(len, data.groups))
+
+        shape = (N_calibrators, N_nodes, max_visits)
+        estimates = np.zeros(shape)
+        ivar_spectrum = np.zeros(shape)
+
+        N_visits = np.zeros((N_calibrators, N_nodes))
+
+        for i, si in enumerate(data.groups.indices[:-1]):
+            ei = data.groups.indices[i + 1]
+
+            j = np.where(data["cname"][si] == unique_cnames)[0][0]
+            k = np.where(data["node_id"][si] == unique_node_ids)[0][0]
+
+            N = ei - si
+            N_visits[j, k] = N
+
+            snr = np.clip(data["snr"][si:ei], 1, np.inf)
+            ivar_spectrum[j, k, :N] = 1.0/snr**2
+
+            estimates[j, k, :N] = data[parameter][si:ei]
+
+
         data_dict = {
-            "N_calibrators": N_calibrators,
-            "N_estimators": N_estimators,
+            "N_calibrators": len(unique_cnames),
+            "N_nodes": len(unique_node_ids),
+            "N_visits": N_visits,
+            "max_visits": max_visits,
+            
             "mu_calibrator": np.array(calibrators[calibrator_name]),
             "sigma_calibrator": np.array(calibrators[calibrator_e_name]),
+
+
+            "ivar_spectrum": ivar_spectrum,
+            "estimates": estimates,
+
+            # Include the node_ids so that we will absolutely have them when we
+            # try to run the homogenisation.
+            "node_ids": unique_node_ids,
+            "calibrator_cnames": unique_cnames,
         }
-
-        # Check the data so far.
-        if 1 > N_calibrators:
-            raise ValueError("no calibrators")
-
-        if 1 > N_estimators:
-            raise ValueError("no estimators")
-
         if not np.all(np.isfinite(data_dict["sigma_calibrator"])):
             logger.warn(
                 "Not all finite calibrator entries of {} have finite errors! " \
@@ -640,20 +668,22 @@ class MeanEnsembleModel(BaseEnsembleModel):
             finite = np.isfinite(data_dict["sigma_calibrator"])
             data_dict["sigma_calibrator"][~finite] = default_sigma_calibrator
 
-        # OK now update the data dictionary with the spectroscopic measurements.
-        # Need to group by node id and CNAME.
-        unique_calibrators = np.array(map(str.strip, calibrators["GES_FLD"]))
-        unique_estimators = np.sort(np.unique(data["node_id"]))
 
+        # Prepare metadata.
+        node_names = self._database.retrieve_table("SELECT * FROM nodes")
+        metadata = {
+            "N_pairwise_nodes": np.math.factorial(N_nodes) \
+                / (2*np.math.factorial(max(1, N_nodes - 2))),
+            "calibrator_ges_fld": calibrators["ges_fld"],
+            "node_ids": unique_node_ids,
+            "node_names": \
+                [node_names["name"][node_names["id"] == node_id][0].strip() \
+                    for node_id in unique_node_ids]
+        }
+        result = (data_dict, metadata)
 
-        raise a
-
-
-
-
-
-
-
+        self._data, self._metadata = result
+        return result
 
 
 
