@@ -604,18 +604,23 @@ class MeanEnsembleModel(BaseEnsembleModel):
             self._calibrators, parameter)
 
         # Match calibrators to data.
+        common_ges_flds \
+            = set(data["ges_fld"]).intersection(self._calibrators["GES_FLD"])
+        keep = np.array([each in common_ges_flds for each in data["ges_fld"]])
+        data = data[keep]
+
         unique_cnames = np.sort(np.unique(data["cname"]))
         unique_node_ids = np.sort(np.unique(data["node_id"]))
-
         calibrator_indices = np.nan * np.ones(len(unique_cnames))
+
         for i, cname in enumerate(unique_cnames):
 
-            match = (data["ges_fld"] == self._calibrators["GES_FLD"][i])
+            ges_fld = data["ges_fld"][data["cname"] == cname][0]
+            match = (ges_fld == self._calibrators["GES_FLD"][i])
             calibrator_indices[i] = np.where(match)[0][0]
 
         calibrators = self._calibrators[calibrator_indices]
         
-
         data = data.group_by(["cname", "node_id"])
 
         # Get the maximum number of visits per calibrator.
@@ -642,9 +647,10 @@ class MeanEnsembleModel(BaseEnsembleModel):
             estimates[j, k, :N] = data[parameter][si:ei]
 
 
+        N_calibrators, N_nodes = len(unique_cnames), len(unique_node_ids)
         data_dict = {
-            "N_calibrators": len(unique_cnames),
-            "N_nodes": len(unique_node_ids),
+            "N_calibrators": N_calibrators,
+            "N_nodes": N_nodes,
             "N_visits": N_visits,
             "max_visits": max_visits,
             
