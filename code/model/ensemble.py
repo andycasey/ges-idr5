@@ -564,7 +564,7 @@ class MeanEnsembleModel(BaseEnsembleModel):
 
     def _prepare_data(self, parameter=None, default_sigma_calibrator=1e3,
         fill_function=np.mean, fill_variance=1e50, require_no_gaps=False,
-        minimum_snr=1, maximum_snr=500, 
+        maximum_snr=500, 
         sql_constraint=None):
         """
         Prepare the data for the model so that it can be supplied to Stan.
@@ -632,7 +632,7 @@ class MeanEnsembleModel(BaseEnsembleModel):
         N_calibrators, N_nodes = len(unique_cnames), len(unique_node_ids)
         shape = (N_calibrators, N_nodes, max_visits)
         estimates = np.zeros(shape)
-        ivar_spectrum = np.zeros(shape)
+        snr_spectrum = np.zeros(shape)
 
         N_visits = np.zeros((N_calibrators, N_nodes))
 
@@ -642,12 +642,14 @@ class MeanEnsembleModel(BaseEnsembleModel):
             j = np.where(data["cname"][si] == unique_cnames)[0][0]
             k = np.where(data["node_id"][si] == unique_node_ids)[0][0]
 
-            N = ei - si
+            keep = data["snr"][si:ei] < maximum_snr
+
+            N = keep.sum()
             N_visits[j, k] = N
 
-            snr = np.clip(data["snr"][si:ei], 1, np.inf)
-            ivar_spectrum[j, k, :N] = 1.0/snr**2
-            estimates[j, k, :N] = data[parameter][si:ei]
+            snr_spectrum[j, k, :N] = np.clip(data["snr"][si:ei][keep], 1, np.inf)
+            estimates[j, k, :N] = data[parameter][si:ei][keep]
+
 
         data_dict = {
             "N_calibrators": N_calibrators,
@@ -658,7 +660,7 @@ class MeanEnsembleModel(BaseEnsembleModel):
             "mu_calibrator": np.array(calibrators[calibrator_name]),
             "sigma_calibrator": np.array(calibrators[calibrator_e_name]),
 
-            "ivar_spectrum": ivar_spectrum,
+            "snr_spectrum": snr_spectrum,
             "estimates": estimates,
 
             # Include the node_ids so that we will absolutely have them when we
@@ -700,7 +702,7 @@ class SingleParameterEnsembleModel(BaseEnsembleModel):
 
     def _prepare_data(self, parameter=None, default_sigma_calibrator=1e3,
         fill_function=np.mean, fill_variance=1e50, require_no_gaps=False,
-        minimum_snr=1, maximum_snr=500, include_calibrator_function=None, 
+        maximum_snr=500, include_calibrator_function=None, 
         sql_constraint=None):
         """
         Prepare the data for the model so that it can be supplied to Stan.
@@ -866,14 +868,17 @@ class SingleParameterEnsembleModel(BaseEnsembleModel):
 
         # Only keep entries where we have *any* finite estimates.
         # This should also remove any skipped calibrators.
-        keep = np.all(np.isfinite(estimates), axis=1) \
-            * (spectrum_snr >= minimum_snr) \
-            * (maximum_snr >= spectrum_snr)
+        keep = np.all(np.isfinite(estimates), axis=1)
+
         
         # Ensure spectrum_snr values are valid.
-        #spectrum_snr = np.clip(spectrum_snr, minimum_snr, maximum_snr)
+        spectrum_snr = np.clip(spectrum_snr, 1, np.inf)
+        
+        keep *= spectrum_snr <= maximum_snr
+
+
         data_dict.update({
-            "ivar_spectrum": (1.0/spectrum_snr[keep])**2,
+            "snr_spectrum": spectrum_snr[keep],
             "N_calibrator_visits": sum(keep),
             "var_additive": var_additive[keep],
             "estimates": estimates[keep],

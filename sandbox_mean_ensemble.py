@@ -46,14 +46,18 @@ data, metadata = model._prepare_data()
 init = {
     "truths": data["mu_calibrator"],
     "var_sys_estimator": 100**2 * np.ones(data["N_nodes"]),
-    "alpha_sq": np.ones(data["N_nodes"]),
+    "log10_alpha_sq": 6 * np.ones(data["N_nodes"]),
     "rho_estimators": np.zeros(metadata["N_pairwise_nodes"]),
     "bias": np.zeros(data["N_nodes"])
 }
 
-op_params = model.optimize(data, init=init)
+raise a
 
-fit = model.sample(data, init=op_params, iter=10)
+op_params = model.optimize(data, init=init, iter=100000)
+raise a
+
+fitted = model.sample(data, init=[op_params]*4, iter=10000, chains=4)
+
 raise a
 
 model.homog

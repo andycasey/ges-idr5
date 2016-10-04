@@ -53,7 +53,7 @@ data {
     matrix[N_nodes, max_visits] estimates[N_calibrators];
 
     // Inverse variance (SNR**-2) of the spectrum
-    matrix[N_nodes, max_visits] ivar_spectrum[N_calibrators];
+    matrix[N_nodes, max_visits] snr_spectrum[N_calibrators];
 }
 
 transformed data {
@@ -64,7 +64,7 @@ transformed data {
 parameters {
     // Uncertainty from each estimator
     //      alpha_sq is alpha**2, where \sigma_rand = alpha/SNR
-    vector<lower=0>[N_nodes] alpha_sq;
+    vector<lower=1, upper=1e6>[N_nodes] alpha_sq;
     //      systematic variance in a given estimator (node)
     vector<lower=0>[N_nodes] var_sys_estimator;
 
@@ -79,14 +79,14 @@ parameters {
 }
 
 transformed parameters {
-    vector[N_nodes] mean_mu;
+    vector[N_nodes] mean_mu[N_calibrators];
     cov_matrix[N_nodes] Sigma[N_calibrators];
 
     // For each calibrator, calculate the weighted mean from each node.
     for (i in 1:N_calibrators) {
         int a;
-        real value;
-        
+        vector[N_nodes] var_total;
+
         for (j in 1:N_nodes) {
             int V;
             V = N_visits[i, j];
@@ -94,44 +94,56 @@ transformed parameters {
             if (V > 0) {
                 // Calculate weights.
                 row_vector[V] weights;
+                row_vector[V] var_rand_estimator;
+                row_vector[V] weighted_var_rand_estimator;
 
-                for (v in 1:V)
-                    weights[v] = 1.0/(alpha_sq[j] * ivar_spectrum[i, j, v]);
+                for (v in 1:V) {
+                    var_rand_estimator[v] = alpha_sq[j] / pow(snr_spectrum[i, j, v], 2);
+                    weights[v] = 1.0/(var_rand_estimator[v]);
+                }
+                weights = weights / sum(weights);
 
-                //mean_mu[j] = sum(weights .* estimates[i, j, 1:V])/sum(weights);
-                mean_mu[j] = mean(estimates[i, j, 1:V]);
-                Sigma[i, j, j] = var_sys_estimator[j];
-                print("check ", i, " and ", j, " and ", weights); 
+                for (v in 1:V) {
+                    weighted_var_rand_estimator[v] = pow(weights[v], 2) * var_rand_estimator[v]; 
+                }
+
+                mean_mu[i, j] = sum(weights .* estimates[i, j, 1:V]);
+                //mean_mu[i, j] = mean(estimates[i, j, 1:V]);
+
+                var_total[j] = sum(weighted_var_rand_estimator) + var_sys_estimator[j];
+            }
+            else {
+                var_total[j] = 1e10;
             }
         }
+
+        Sigma[i] = diag_matrix(var_total);
 
         a = 1;
         for (j in 1:N_nodes) {
             for (k in j + 1:N_nodes) {
-                Sigma[i, j, k] = rho_estimators[a] * sqrt(Sigma[i, j, j] * Sigma[i, k, k]);
-                Sigma[i, k, j] = rho_estimators[a] * sqrt(Sigma[i, j, j] * Sigma[i, k, k]);
-                a = a + 1;
+                Sigma[i, j, k] = rho_estimators[a] * sqrt(var_total[j]) * sqrt(var_total[k]);
+                Sigma[i, k, j] = rho_estimators[a] * sqrt(var_total[j]) * sqrt(var_total[k]);
+                a = a + 1;       
             }
+        }
+        for (j in 1:N_nodes) {
             if (N_visits[i, j] == 0) {
-                mean_mu[j] = mean(truths);
+                mean_mu[i, j] = mean(truths);
                 Sigma[i, j, :] = rep_vector(0.0, N_nodes)';
                 Sigma[i, :, j] = rep_vector(0.0, N_nodes);
                 Sigma[i, j, j] = 1e10;
             }
         }
+
+        mean_mu[i] = mean_mu[i] + bias;
     }
 }
 
 model {
     truths ~ normal(mu_calibrator, sigma_calibrator);
-
-    for (i in 1:N_calibrators) {
-        value = multi_normal_log(mean_mu[i], rep_vector(truths[i], N_nodes), Sigma[i]);
-
-        print("i = ", i, " ", mean_mu[i], " and ", truths[i], " and ", value);
-        increment_log_prob(value);
-        //mean_mu[i] ~ multi_normal(rep_vector(truths[i], N_nodes), Sigma[i]);
-    }
+    for (i in 1:N_calibrators)
+        mean_mu[i] ~ multi_normal(rep_vector(truths[i], N_nodes), Sigma[i]);
 }
 
 

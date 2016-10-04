@@ -58,8 +58,8 @@ data {
     // Additive variance is for when no calibrator measurement are finite 
     vector<lower=0>[N_estimators] var_additive[N_calibrator_visits]; 
 
-    // Inverse variance (SNR**-2) of the spectrum
-    vector[N_calibrator_visits] ivar_spectrum;     
+    // SNR of the spectrum
+    vector[N_calibrator_visits] snr_spectrum;     
 
     matrix[N_estimators, N_estimators] Sigma_c0[N_calibrator_visits];
     matrix[N_estimators, N_estimators] Sigma_c1[N_calibrator_visits];                     
@@ -76,7 +76,9 @@ parameters {
 
     // Uncertainty from each estimator
     //      alpha_sq is alpha**2, where \sigma_rand = alpha/SNR
-    vector<lower=1>[N_estimators] alpha_sq;
+    // This sets a lower precision bound of 100 K at S/N ~ 1,
+    // and an upper precision bound of 1000 at S/N ~ 1.
+    vector<lower=100,upper=1000>[N_estimators] alpha;
     //      systematic variance in a given estimator (node)
     vector<lower=0>[N_estimators] var_sys_estimator;
 
@@ -104,12 +106,12 @@ transformed parameters {
                     sigma_j = sqrt(
                         //var_intrinsic + 
                         var_sys_estimator[j] + 
-                        alpha_sq[j] * ivar_spectrum[i]);
+                        pow(alpha[k], 2) / snr_spectrum[i]);
 
                     sigma_k = sqrt(
                         //var_intrinsic +
                         var_sys_estimator[k] + 
-                        alpha_sq[k] * ivar_spectrum[i]);
+                        pow(alpha[k], 2) / snr_spectrum[i]);
 
                     if (j == k) {
                         Sigma[i,j,j] = sigma_j * sigma_j;
@@ -135,7 +137,6 @@ transformed parameters {
 }
 
 model {
-    alpha_sq ~ normal(1000, 500);
     mu_calibrator ~ normal(to_vector(truths), sigma_calibrator); 
     for (i in 1:N_calibrator_visits) {
         estimates[i] ~ multi_normal(
