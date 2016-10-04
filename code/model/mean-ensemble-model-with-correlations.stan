@@ -78,17 +78,15 @@ parameters {
     vector[N_calibrators] truths;
 }
 
-model {
+transformed parameters {
+    vector[N_nodes] mean_mu;
     cov_matrix[N_nodes] Sigma[N_calibrators];
-    truths ~ normal(mu_calibrator, sigma_calibrator);
-
 
     // For each calibrator, calculate the weighted mean from each node.
     for (i in 1:N_calibrators) {
         int a;
         real value;
-        vector[N_nodes] mean_mu;
-
+        
         for (j in 1:N_nodes) {
             int V;
             V = N_visits[i, j];
@@ -100,7 +98,8 @@ model {
                 for (v in 1:V)
                     weights[v] = 1.0/(alpha_sq[j] * ivar_spectrum[i, j, v]);
 
-                mean_mu[j] = sum(weights .* estimates[i, j, 1:V])/sum(weights);
+                //mean_mu[j] = sum(weights .* estimates[i, j, 1:V])/sum(weights);
+                mean_mu[j] = mean(estimates[i, j, 1:V]);
                 Sigma[i, j, j] = var_sys_estimator[j];
                 print("check ", i, " and ", j, " and ", weights); 
             }
@@ -120,8 +119,13 @@ model {
                 Sigma[i, j, j] = 1e10;
             }
         }
+    }
+}
 
-        //mean_mu[i] = mean_mu[i];
+model {
+    truths ~ normal(mu_calibrator, sigma_calibrator);
+
+    for (i in 1:N_calibrators) {
         value = multi_normal_log(mean_mu[i], rep_vector(truths[i], N_nodes), Sigma[i]);
 
         print("i = ", i, " ", mean_mu[i], " and ", truths[i], " and ", value);
