@@ -117,7 +117,7 @@ def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
         raise ValueError(
             "stan_model must be provided, or stan_chains and stan_data")
 
-    K = len(samples["var_intrinsic"])
+    K = samples["truths"].shape[0]
     M = len(set(estimates["node_id"]))
 
     if 1 > N or N > K:
@@ -155,8 +155,8 @@ def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
             mu = np.array(
                 estimates[parameter][s:e] + samples["c0_estimators"][i, k])
 
-            spectrum_snr = np.clip(estimates["snr"][s:e], 0.1, np.inf)
-            C = np.eye(L) * (samples["alpha_sq"][i, k]/spectrum_snr**2)
+            spectrum_snr = np.clip(estimates["snr"][s:e], 1, np.inf)
+            C = np.eye(L) * (samples["alpha"][i, k]**2/spectrum_snr)
 
             W = np.ones((L, 1))
             Cinv = np.linalg.inv(C)
@@ -180,15 +180,34 @@ def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
 
         # Gauss-Markov theorem.
         W = np.ones((M, 1))
-        Cinv = np.linalg.inv(C)
+
+        if np.linalg.cond(C) > np.finfo(matrix.dtype).eps:
+            # Matrix is ill-conditioned.
+            logger.warn("Covariance matrix is ill-conditioned.")
+
+            # Use SVD to invert matrix.
+            U, s, V = np.linalg.svd(C)
+            Cinv = np.dot(np.dot(V.T, np.linalg.inv(np.diag(s))), U.T)
+
+        else:
+            Cinv = np.linalg.inv(C)
+
         var = 1.0/np.dot(np.dot(W.T, Cinv), W)
-        mu = var * np.dot(np.dot(W.T, Cinv), mu_node)
+        if var < 0:
+            logger.warn("Negative variance returned!")
+            
+        mu = np.abs(var) * np.dot(np.dot(W.T, Cinv), mu_node)
 
         mu_samples[ii] = mu
         var_samples[ii] = var
 
-    central = np.median(mu_samples)
-    error = np.sqrt(np.median(var_samples))
+    central = np.nanmedian(mu_samples)
+    error = np.sqrt(np.nanmedian(np.abs(var_samples)))
+
+    if np.isfinite(central):
+        assert np.isfinite(error)
+
+    raise a
 
     if update_database:
 
@@ -464,7 +483,7 @@ class BaseEnsembleModel(object):
                 self._database, self._wg, self._parameter, cname,
                 stan_chains=self._chains, stan_data=self._data,
                 **kwargs)
-            pos_error = neg_error = np.median(var**0.5)
+            pos_error = neg_error = np.nanmedian(var**0.5)
 
             #p = np.percentile(posterior, [16, 50, 84])
             #value, pos_error, neg_error = (p[1], p[2] - p[1], p[0] - p[1])
@@ -472,7 +491,7 @@ class BaseEnsembleModel(object):
             logger.info("Homogenised {parameter} for {cname} (WG{wg} {i}/{N}): "
                 "{mu:.2f} ({pos_error:.2f}, {neg_error:.2f})".format(
                     parameter=self._parameter, cname=cname, wg=self._wg, i=i+1,
-                    N=N, mu=np.median(mu), pos_error=pos_error, neg_error=neg_error))
+                    N=N, mu=np.nanmedian(mu), pos_error=pos_error, neg_error=neg_error))
 
         if kwargs.get("update_database", True):
             self._database.connection.commit()
