@@ -39,6 +39,9 @@ database.update(
                 passed_quality_control = true
          WHERE  passed_quality_control = false;""")
 
+
+
+
 database.connection.commit()
 
 # Identify spurious spectra and mark them as such.
@@ -263,5 +266,25 @@ for key, value in qc_flags["node_specific_flags"].items():
             logger.info(
                 "Marked {} results as poor quality due to matching flag {} "\
                 "and constraint {}".format(N, flag, constraint))
+
+
+# Flag *CLEARLY* erroneous problems from the WG11/IACAIP node. Some of these will
+node_id = database.retrieve_node_id(11, "IACAIP")
+
+N = database.update(
+    """ UPDATE  results
+           SET  passed_quality_control = false,
+                propagated_tech = '10308-11-00-00-A'
+         WHERE  results.node_id = '{}'
+           AND  passed_quality_control
+           AND  (
+                    (teff <> 'NaN' AND (teff <= 3000 OR teff >= 8000))
+                    OR
+                    (logg <> 'NaN' AND (logg <= 0 OR logg >= 5))
+                    OR
+                    (feh <> 'NaN' AND (feh <= -3 OR feh >= 1))
+                );
+    """.format(node_id))
+logger.info("Marked {} WG11/IACAIP results as out-of-grid.")
 
 database.connection.commit()
