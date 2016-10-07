@@ -137,7 +137,7 @@ def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
 
     for ii, i in enumerate(indices):
 
-        # Average from each node first.
+        # Weighted mean from each node first (over many observations)
         mu_node = np.zeros(M)
         var_node_sys = np.zeros(M)
         var_node_rand = np.zeros(M)
@@ -151,7 +151,7 @@ def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
             k = np.where(estimates["node_id"][s] == unique_node_ids)[0][0]
             node_ids[j] = estimates["node_id"][s]
 
-            # Calculate weighted node mean from random uncertainties.
+            # Get the 'unbiased' values.
             mu = np.array(
                 estimates[parameter][s:e] + samples["c0_estimators"][i, k])
 
@@ -160,6 +160,9 @@ def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
 
             W = np.ones((L, 1))
             Cinv = np.linalg.inv(C)
+            
+            raise a
+            # this is wrong here because we want to just sum the inv vars
             var_node_rand[j] = 1.0/np.dot(np.dot(W.T, Cinv), W)
             mu_node[j] = var_node_rand[j] * np.dot(np.dot(W.T, Cinv), mu)
 
@@ -761,8 +764,11 @@ class SingleParameterEnsembleModel(BaseEnsembleModel):
         """
 
         parameter = str(parameter or self._parameter).lower()
-        if parameter not in ("teff", "logg", "feh", "xi", "mh"):
+        valid_parameters = ["teff", "logg", "feh"]
+        if parameter not in valid_parameters:
             raise AreYouSureYouKnowWhatYoureDoing
+
+        sp_index = 1 + valid_parameters.index(parameter)
 
         # Get the data from the database for this WG.
         # TODO: Need a better way to identify calibrators. Right now we do it
@@ -789,7 +795,7 @@ class SingleParameterEnsembleModel(BaseEnsembleModel):
                                         else " AND {}".format(sql_constraint)))
         assert data is not None, "No calibrator data from WG {}".format(wg)
 
-        # Calibrator parameter name
+        # Calibrator parameter names
         calibrator_name, calibrator_e_name = _guess_parameter_name(
             self._calibrators, parameter)
 
@@ -811,8 +817,15 @@ class SingleParameterEnsembleModel(BaseEnsembleModel):
         data_dict = {
             "N_calibrators": N_calibrators,
             "N_estimators": N_estimators,
+            #"mu_calibrator": \
+            #    np.array([calibrators[p] for p in ["TEFF", "LOGG", "FEH"]]),
+            #"sigma_calibrator": \
+            #    np.array([calibrators[p] for p in ["E_TEFF", "E_LOGG", "E_FEH"]]),
+            #"sp_index": sp_index,
             "mu_calibrator": np.array(calibrators[calibrator_name]),
             "sigma_calibrator": np.array(calibrators[calibrator_e_name]),
+
+
         }
 
         # Check the data so far.
@@ -912,19 +925,6 @@ class SingleParameterEnsembleModel(BaseEnsembleModel):
             "node_ids": unique_estimators,
         })
 
-        Sigma_c0 = np.array(map(np.diag, var_additive[keep]))
-        Sigma_c1 = np.ones_like(Sigma_c0)
-        for i in range(sum(keep)):
-            for j in range(N_estimators):
-                if Sigma_c0[i, j, j] > 0:
-                    Sigma_c1[i, :, j] = 0
-                    Sigma_c1[i, j, :] = 0
-
-        data_dict.update({
-            "Sigma_c0": Sigma_c0,
-            "Sigma_c1": Sigma_c1
-        })
-
         alpha_bounds = {
             "teff": (100, 1000),
             "logg": (0.1, 1),
@@ -948,3 +948,222 @@ class SingleParameterEnsembleModel(BaseEnsembleModel):
         self._data, self._metadata = result
         return result
 
+
+
+
+class EnsembleModelWithSysVarianceModel(SingleParameterEnsembleModel):
+
+    _MODEL_PATH = os.path.join(
+        os.path.dirname(os.path.realpath(__file__)),
+        "ensemble-model-with-sys-variance-model.stan")
+
+
+class MissingDataModel(BaseEnsembleModel):
+
+    _MODEL_PATH = os.path.join(
+        os.path.dirname(os.path.realpath(__file__)),
+        "ensemble-model-missing-data.stan")
+
+    def _prepare_data(self, parameter=None, default_sigma_calibrator=1e3,
+        minimum_node_estimates=1, sql_constraint=None):
+        """
+        Prepare the data for the model so that it can be supplied to Stan.
+
+        :param parameter: [optional]
+            The name of the model parameter (e.g., teff) that will be used in
+            this single parameter ensemble model. If `None` provided, then this
+            defaults to the model parameter provided when the EnsembleModel was
+            initiated.
+
+        :param minimum_node_estimates: [optional]
+            The minimum number of node measurements for a single visit of a 
+            calibrator spectrum. If this is set to a negative value, then only
+            calibrator results will be used where *all* nodes have provided a
+            measurement for that spectrum.
+
+        :param sql_constraint: [optional]
+            Specify an optional SQL constraint to include when retrieving the
+            node results.
+        """
+
+        parameter = str(parameter or self._parameter).lower()
+        valid_parameters = ["teff", "logg", "feh"]
+        if parameter not in valid_parameters:
+            raise AreYouSureYouKnowWhatYoureDoing
+
+        # Get the data from the database for this WG.
+        # TODO: Need a better way to identify calibrators. Right now we do it
+        #       just on GES_TYPE, but in future we may want to do this directly
+        #       on to CNAMEs in the calibrator list.
+        data = self._database.retrieve_table(
+            """ WITH    n AS (
+                            SELECT id FROM nodes WHERE wg = {wg}), 
+                        s AS (
+                            SELECT cname, ges_type, ges_fld
+                            FROM spectra
+                            WHERE ges_type LIKE 'GE_SD_B%') 
+                SELECT DISTINCT ON (r.filename, r.node_id) 
+                    s.cname, s.ges_type, s.ges_fld,
+                    r.filename, r.node_id, r.snr,
+                    r.{parameter}, r.e_{parameter}
+                FROM    s, n, results as r 
+                WHERE r.cname = s.cname 
+                  AND r.node_id = n.id 
+                  AND r.passed_quality_control = true {sql_constraint}
+                """.format(
+                    wg=self._wg, parameter=parameter,
+                    sql_constraint=""   if sql_constraint is None \
+                                        else " AND {}".format(sql_constraint)))
+        assert data is not None, "No calibrator data from WG {}".format(wg)
+
+        # Calibrator parameter names
+        calibrator_name, calibrator_e_name = _guess_parameter_name(
+            self._calibrators, parameter)
+
+        finite_calibrator = np.isfinite(self._calibrators[calibrator_name])
+        if not np.all(finite_calibrator):
+            logger.warn("Not all calibrator values of {} are finite! ({}/{})"\
+                .format(parameter, sum(finite_calibrator), len(finite_calibrator)))
+       
+        # OK now update the data dictionary with the spectroscopic measurements.
+        # Need to group by node id and CNAME.
+        calibrators = self._calibrators.copy()
+
+        # Common calibrators to serve as an indexing reference.
+        common_calibrators = set(map(str.strip, calibrators["GES_FLD"]))\
+                                .intersection(map(str.strip, data["ges_fld"]))
+        common_calibrators = np.sort(list(common_calibrators))
+
+        # Remove calibrators not in common.
+        keep = np.ones(len(self._calibrators), dtype=bool)
+        for i, ges_fld in enumerate(self._calibrators["GES_FLD"]):
+            if ges_fld.strip() not in common_calibrators:
+                keep[i] = False
+
+        calibrators = self._calibrators[keep]
+        calibrators.sort("GES_FLD")
+        assert calibrators["GES_FLD"][0].strip() == common_calibrators[0]
+        C = len(calibrators)
+
+        unique_estimators = np.sort(np.unique(data["node_id"]))
+        N = unique_estimators.size
+
+        # Get the maximum number of visits for any calibrator
+        data = data.group_by(["cname"])
+        V = np.max([len(set(group["filename"])) for group in data.groups])
+
+        skipped = {}
+        visits = np.zeros(C, dtype=int)
+        estimates = np.nan * np.ones((C, N, V))
+        spectrum_ivar = np.zeros((C, V))
+
+        for i, si in enumerate(data.groups.indices[:-1]):
+            ges_fld = data["ges_fld"][si].strip()
+            if ges_fld not in common_calibrators: continue
+
+            c = np.where(ges_fld == common_calibrators)[0][0]
+
+            ei = data.groups.indices[i + 1]
+            filename_visits = np.unique(data["filename"][si:ei])
+
+            for k in range(si, ei):
+
+                n = np.where(data["node_id"][k] == unique_estimators)[0][0]
+                v = np.where(data["filename"][k] == filename_visits)[0][0]
+
+                estimates[c, n, v] = data[parameter][k]
+
+                snr = np.clip(data["snr"][k], 1, np.inf)
+                spectrum_ivar[c, v] = snr**2
+
+            visits[c] = np.sum(np.any(np.isfinite(estimates[c]), axis=0))
+
+        
+        # Remove any nodes with zero measurements.
+        keep = np.array([np.any(np.isfinite(estimates[:, n, :])) for n in range(N)])
+        estimates = estimates[:, keep, :]
+        unique_estimators = unique_estimators[keep]
+        N = sum(keep)
+
+        if minimum_node_estimates != 0:
+            if minimum_node_estimates < 0:
+                minimum_node_estimates = N
+
+            # Only keep visits that have at least the number of minimum node measurements
+            for c in range(C):
+                mask = np.sum(np.isfinite(estimates[c]), axis=0) >= minimum_node_estimates
+                
+                n_full_rank = mask.sum()
+                estimates[c][:, :n_full_rank] = estimates[c][:, mask]
+                estimates[c][:, n_full_rank:] = np.nan
+
+                spectrum_ivar[c, :n_full_rank] = spectrum_ivar[c][mask]
+                spectrum_ivar[c, n_full_rank:] = 0
+
+                # Update the number of visits for this calibrator
+                visits[c] = n_full_rank
+
+            _slice = visits > 0
+
+            calibrators = calibrators[_slice]
+
+            visits = visits[_slice]
+            estimates = estimates[_slice, :, :max(visits)]
+            spectrum_ivar = spectrum_ivar[_slice, :max(visits)]
+
+            C, _, V = estimates.shape
+
+        # Construct N_missing
+        is_missing = np.zeros(estimates.shape, dtype=bool)
+        for c, v in enumerate(visits):
+            is_missing[c] = (~np.isfinite(estimates[c])) \
+                          * (np.tile(np.arange(V), N).reshape(N, V) < v)
+
+        if minimum_node_estimates >= N: assert np.sum(is_missing) == 0
+
+        mu_calibrator = np.array(calibrators[calibrator_name])
+        sigma_calibrator = np.array(calibrators[calibrator_e_name])
+
+        if not np.all(np.isfinite(sigma_calibrator)):
+            logger.warn("Not all calibrator uncertainties are finite! "
+                        "Filling in with default value {}".format(
+                            default_sigma_calibrator))
+            sigma_calibrator[~np.isfinite(sigma_calibrator)] = default_sigma_calibrator
+
+        data_dict = {
+            "N": N, # number of nodes
+            "C": C, # number of calibrators
+            "V": V, # maximum number of visits to any calibrator
+            "visits": visits.astype(int),
+
+            "is_missing": is_missing.astype(int),
+            "N_missing": np.sum(is_missing),
+
+            "estimates": estimates,
+            "spectrum_ivar": spectrum_ivar.T,
+            "spectrum_isnr": 1.0/np.sqrt(spectrum_ivar.T),
+
+            "mu_calibrator": mu_calibrator,
+            "sigma_calibrator": sigma_calibrator
+        }
+
+        alpha_bounds = dict(teff=(100, 1000), logg=(0.1, 1.0), feh=(0.1, 1.0))
+        data_dict.update(
+            dict(zip(("lower_alpha_sq", "upper_alpha_sq"), np.array(alpha_bounds[parameter])**2)))
+
+        bounds = dict(teff=(3000, 8000), logg=(0, 5), feh=(-3.5, 0.5))
+        data_dict.update(
+            dict(zip(("lower_bound", "upper_bound"), bounds[parameter])))
+
+        # Create additional metadata
+        node_names = self._database.retrieve_table("SELECT * FROM nodes")
+        metadata = {
+            "calibrators": calibrators,
+            "node_ids": unique_estimators,
+            "node_names": \
+                [node_names["name"][node_names["id"] == node_id][0].strip() \
+                    for node_id in unique_estimators]
+        }
+        result = (data_dict, metadata)
+        self._data, self._metadata = result
+        return result
