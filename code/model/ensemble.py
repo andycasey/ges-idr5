@@ -278,7 +278,12 @@ class BaseEnsembleModel(object):
         self._parameter = parameter
         self._calibrators = calibrators
 
-        self._model = self._load_model(recompile, overwrite, **kwargs)
+        model_code = kwargs.get("model_code", None)
+        if model_code is None:
+            self._model = self._load_model(recompile, overwrite, **kwargs)
+        else:
+            # We have model code -- use it.
+            raise a
 
         # For later.
         self._data = None
@@ -519,7 +524,8 @@ class BaseEnsembleModel(object):
                 "filename {} exists and not overwriting".format(filename))
 
         state = {
-            "model_path": self._MODEL_PATH, 
+            "model_path": self._MODEL_PATH,
+            "model_code": self._model.model_code, 
             "wg": self._wg,
             "parameter": self._parameter,
             "calibrators": self._calibrators,
@@ -562,7 +568,7 @@ class BaseEnsembleModel(object):
 
         klass = \
             cls(database, state["wg"], state["parameter"], state["calibrators"],
-                **kwargs)
+                model_code=state.get("model_code", None), **kwargs)
 
         # Update the klass.
         klass._data = state.get("data", None)
@@ -1137,14 +1143,18 @@ class MissingDataModel(BaseEnsembleModel):
             "visits": visits.astype(int),
 
             "is_missing": is_missing.astype(int),
-            "N_missing": np.sum(is_missing),
+            "TM": np.sum(is_missing),
 
             "estimates": estimates,
             "spectrum_ivar": spectrum_ivar.T,
             "spectrum_isnr": 1.0/np.sqrt(spectrum_ivar.T),
 
             "mu_calibrator": mu_calibrator,
-            "sigma_calibrator": sigma_calibrator
+            "sigma_calibrator": sigma_calibrator,
+
+            "S": 3, # TODO: Make this flexible? Make the calibrator values accessible from kwargs?
+            "all_mu_calibrator": np.vstack(
+                [calibrators[p] for p in ("TEFF", "LOGG", "FEH")]).T
         }
 
         alpha_bounds = dict(teff=(100, 1000), logg=(0.1, 1.0), feh=(0.1, 1.0))

@@ -38,7 +38,7 @@ parameter_scales = OrderedDict([
     ("feh", 0.25)
 ])
 
-sample_kwds = dict(chains=4, iter=2000)
+sample_kwds = dict(chains=4, iter=10000, thin=10)
 
 finite = np.isfinite(benchmarks["TEFF"] * benchmarks["LOGG"] * benchmarks["FEH"])
 benchmarks = benchmarks[finite]
@@ -49,37 +49,45 @@ for wg in wgs:
     for parameter, scale in parameter_scales.items():
 
         model_path = model_paths.format(wg=wg, parameter=parameter)
+        if os.path.exists(model_path): continue
+
 
         model = MissingDataModel(database, wg, parameter, benchmarks)
         data, metadata = model._prepare_data(
             default_sigma_calibrator=scale)
-        
+
 
         init = {
             "truths": data["mu_calibrator"],
             "biases": np.zeros(data["N"]),
-            "missing_estimates": np.mean([data["upper_bound"], data["lower_bound"]]) * np.ones(data["N_missing"]),
-            "alpha_sq": 500**2 * np.ones(data["N"]),
-            "variance_sys": scale**2 * np.ones(data["N"]),
+            "missing_estimates": np.random.uniform(
+                data["lower_bound"], data["upper_bound"], size=data["TM"]),
+            "alpha_sq": np.mean([data["lower_alpha_sq"], data["upper_alpha_sq"]]) * np.ones(data["N"]),
+            "vs_c": scale**2 * np.ones(data["N"]),
+            "vs_a": 1e-2 + np.zeros((data["N"], data["S"])).T,
+            "vs_b": 1e-2 + np.ones((data["N"], data["S"])).T,
             "L_corr": np.eye(data["N"])
         }
 
-        raise a
+        print("Number of model parameters: {}".format(
+            sum([np.array(v).size for v in init.values()])))
+
         op_params = model.optimize(data, init=init, iter=100000)
 
-        raise a
         fit = model.sample(data, init=op_params, **sample_kwds)
 
-        model.write(model_path, overwrite=True)
+        model.write(model_path, 
+            overwrite=True, __ignore_model_pars=("Sigma", "full_rank_estimates"))
+
 
         # Keep the model.
         models[wg][parameter] = model
 
+        continue
+
 
         # Plot some stuff.
         fig = model.plot_node_correlations()
-        
-        raise a
         fig.savefig("wg{}-{}-node-correlations.pdf".format(wg, parameter))
 
         fig = model.plot_node_uncertainty_with_snr(

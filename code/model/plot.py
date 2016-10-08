@@ -18,6 +18,102 @@ logger = logging.getLogger("ges")
 
 _DEFAULT_SAVEFIG_KWDS = dict(dpi=300, bbox_inches="tight")
 
+
+def node_systematic_uncertainty(model, quartiles=[2.5, 50, 97.5], N=1000,
+    ylims=None, hide_node_ids=None):
+    """
+    Plot the systematic uncertainty from all nodes as a function of the stellar
+    parameters.
+    """
+
+    quartiles = np.hstack(quartiles)
+    Q = len(quartiles)
+    if Q not in (1, 3):
+        raise ValueError("quartiles must be length 1 or 3")
+
+    chains = model._chains
+    assert chains is not None, "Has the model been sampled?"
+
+    xN = 500 
+
+    # Get sample indices.
+    K = chains["truths"].shape[0]
+    N = K if not K >= N > 0 else N
+    indices = np.random.choice(range(K), N, replace=False)
+
+    node_ids = model._data["node_ids"]
+    hide_node_ids = hide_node_ids or []
+
+    L = len(node_ids)
+    colors = brewer2mpl.get_map("Set1", "qualitative", L).mpl_colors[::-1]
+    parameters = ("teff", "logg", "feh")
+
+    parameter_ranges = {
+        "teff": (3000, 8000),
+        "logg": (0, 5),
+        "feh": (-3, 0.5)
+    }
+
+    fig, axes = plt.subplots(3)
+
+    x_all = np.array([np.linspace(*(list(parameter_ranges[parameter]) + [xN])) \
+        for parameter in parameters])
+
+    # Design matrix.
+    M = np.ones((7, xN))
+    M[1] = (x_all[0] - parameter_ranges["teff"][0])/np.ptp(parameter_ranges["teff"])
+    M[2] = (x_all[1] - parameter_ranges["logg"][0])/np.ptp(parameter_ranges["logg"])
+    M[3] = (x_all[2] - parameter_ranges["feh"][0])/np.ptp(parameter_ranges["feh"])
+    M[4] = M[1]**2
+    M[5] = M[2]**2
+    M[6] = M[3]**2
+
+    for j, (ax, parameter) in enumerate(zip(axes, parameters)):
+
+        x = x_all[j]
+        x_scaled = (x_all[j] - parameter_ranges[parameter][0])/np.ptp(parameter_ranges[parameter])
+
+        for i, node_id in enumerate(set(node_ids).difference(hide_node_ids)): 
+            
+            k = np.where(node_id == node_ids)[0][0]
+
+            coeff = chains["var_sys_coeff"][indices, [k]]
+            y = np.zeros((N * xN, xN))
+            for k, xi in enumerate(x_scaled):
+
+                M = np.ones((7, xN))
+                M[1] = (x_all[0] - parameter_ranges["teff"][0])/np.ptp(parameter_ranges["teff"])
+                M[2] = (x_all[1] - parameter_ranges["logg"][0])/np.ptp(parameter_ranges["logg"])
+                M[3] = (x_all[2] - parameter_ranges["feh"][0])/np.ptp(parameter_ranges["feh"])
+                M[4] = M[1]**2
+                M[5] = M[2]**2
+                M[6] = M[3]**2
+
+                M[1 + j] = xi
+                M[4 + j] = xi**2
+
+                y[:, k] = np.abs(np.dot(coeff, M)).flatten()
+
+            q = np.percentile(np.sqrt(y), quartiles, axis=0)
+
+            # Get node name.
+            record = model._database.retrieve(
+                "SELECT wg, name FROM nodes WHERE id = %s", (node_id, ))
+            assert record is not None, "Node id {} doesn't exist?".format(node_id)
+            wg, name = record[0]
+
+            ax.plot(x, q[Q / 2], lw=2, c=colors[i], zorder=10,
+                label=r"${{\rm {0}}}$".format(name.strip()))
+
+            # Show filled region.
+            if Q > 1:
+                ax.fill_between(x, q[0], q[-1], facecolor=colors[i], 
+                    alpha=0.5, edgecolor="none")
+
+        raise a
+
+
+
 def node_uncertainty_with_snr(model, quartiles=[2.5, 50, 97.5], N=1000,
     show_wg_limit=True, xlims=(1, 500), ylims=None, hide_node_ids=None, 
     show_data_points=True, **kwargs):
