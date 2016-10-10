@@ -135,8 +135,8 @@ ALTER TABLE results ADD COLUMN id BIGSERIAL PRIMARY KEY;
 ALTER TABLE results ALTER COLUMN passed_quality_control SET DEFAULT true;
 
 
-DROP TABLE IF EXISTS recommended_results;
-CREATE TABLE recommended_results (
+DROP TABLE IF EXISTS wg_recommended_results;
+CREATE TABLE wg_recommended_results (
     provenance_ids_for_teff integer[],
     provenance_ids_for_logg integer[],
     provenance_ids_for_feh integer[],
@@ -221,29 +221,29 @@ CREATE TABLE recommended_results (
     remark char(255),
     tech char(255)
 );
-ALTER TABLE recommended_results ADD COLUMN id BIGSERIAL PRIMARY KEY;
-CREATE UNIQUE INDEX single_cname_result_per_wg ON recommended_results (wg, cname);
+ALTER TABLE wg_recommended_results ADD COLUMN id BIGSERIAL PRIMARY KEY;
+CREATE UNIQUE INDEX single_cname_result_per_wg ON wg_recommended_results (wg, cname);
 
-ALTER TABLE recommended_results ADD CONSTRAINT teff_provenance_required
+ALTER TABLE wg_recommended_results ADD CONSTRAINT teff_provenance_required
     CHECK (teff = 'NaN' OR provenance_ids_for_teff is not null);
-ALTER TABLE recommended_results ADD CONSTRAINT logg_provenance_required
+ALTER TABLE wg_recommended_results ADD CONSTRAINT logg_provenance_required
     CHECK (logg = 'NaN' OR provenance_ids_for_logg is not null);
-ALTER TABLE recommended_results ADD CONSTRAINT feh_provenance_required
+ALTER TABLE wg_recommended_results ADD CONSTRAINT feh_provenance_required
     CHECK (feh = 'NaN' OR provenance_ids_for_feh is not null);
-ALTER TABLE recommended_results ADD CONSTRAINT mh_provenance_required
+ALTER TABLE wg_recommended_results ADD CONSTRAINT mh_provenance_required
     CHECK (mh = 'NaN' OR provenance_ids_for_mh is not null);
-ALTER TABLE recommended_results ADD CONSTRAINT xi_provenance_required
+ALTER TABLE wg_recommended_results ADD CONSTRAINT xi_provenance_required
     CHECK (xi = 'NaN' OR provenance_ids_for_xi is not null);
-ALTER TABLE recommended_results ADD CONSTRAINT alpha_fe_provenance_required
+ALTER TABLE wg_recommended_results ADD CONSTRAINT alpha_fe_provenance_required
     CHECK (alpha_fe = 'NaN' OR provenance_ids_for_alpha_fe is not null);    
 
-ALTER TABLE recommended_results ADD CONSTRAINT valid_e_teff_required
+ALTER TABLE wg_recommended_results ADD CONSTRAINT valid_e_teff_required
     CHECK ((e_teff > 0 AND e_teff is not null) OR teff = 'NaN');
-ALTER TABLE recommended_results ADD CONSTRAINT valid_e_logg_required
+ALTER TABLE wg_recommended_results ADD CONSTRAINT valid_e_logg_required
     CHECK ((e_logg > 0 AND e_logg is not null) OR logg = 'NaN');
-ALTER TABLE recommended_results ADD CONSTRAINT valid_e_feh_required
+ALTER TABLE wg_recommended_results ADD CONSTRAINT valid_e_feh_required
     CHECK ((e_feh > 0 AND e_feh is not null) OR feh = 'NaN');
-ALTER TABLE recommended_results ADD CONSTRAINT valid_e_xi_required
+ALTER TABLE wg_recommended_results ADD CONSTRAINT valid_e_xi_required
     CHECK ((e_xi > 0 AND e_xi is not null) OR xi = 'NaN');
-ALTER TABLE recommended_results ADD CONSTRAINT valid_e_mh_required
+ALTER TABLE wg_recommended_results ADD CONSTRAINT valid_e_mh_required
     CHECK ((e_mh > 0 AND e_mh is not null) OR mh = 'NaN');

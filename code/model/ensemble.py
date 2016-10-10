@@ -9,7 +9,9 @@ import numpy as np
 import os
 import pystan as stan
 from astropy.table import Table
+from collections import OrderedDict
 from itertools import combinations
+from time import time
 
 from . import plot
 
@@ -41,7 +43,7 @@ def _guess_parameter_names(table, names):
 
 
 def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
-    stan_model=None, stan_chains=None, stan_data=None, update_database=True):
+    stan_model=None, update_database=True):
     """
     Produce an unbiased estimate of an astrophyiscal parameter for a given
     survey object.
@@ -64,25 +66,13 @@ def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
 
         Either the fitted stan model must be provided, or the Stan chains and 
         the data dictionary (`stan_chains` and `stan_data`) must be provided.
-
-    :param stan_chains: [optional]
-        The extracted samples (chains) from the sampled Stan model.
-
-        Either the `stan_model` must be provided, or the Stan chains and
-        the data dictionary (`stan_chains` and `stan_data`) must be provided.
-
-    :param stan_data: [optional]
-        The data dictionary provided to Stan.
-
-        Either the `stan_model` must be provided, or the Stan chains and
-        the data dictionary (`stan_chains` and `stan_data`) must be provided.    
     """
 
     # Get the data for this object.
     estimates = database.retrieve_table(
         """ SELECT  DISTINCT ON (filename, node_id)
                     results.id, cname, node_id, snr, trim(filename) as filename, 
-                    {parameter}
+                    teff, logg, feh
             FROM    results, nodes
             WHERE   nodes.wg = {wg}
               AND   nodes.id = results.node_id
@@ -92,7 +82,7 @@ def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
         """.format(wg=wg, cname=cname, parameter=parameter))
 
     if estimates is None:
-        return (np.array([np.nan]), np.array([np.nan]))
+        return np.nan * np.ones(4)
 
     # Extract N samples for all the parameters.
 
@@ -105,17 +95,8 @@ def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
     #   4. Draw from a Gaussian using the weighted means and your new Cov matrix
     #   5. Record the draw.
 
-    if stan_model is not None:
-        samples = stan_model.extract(
-            pars=set(stan_model.model_pars).difference(("Sigma", )))
-        unique_node_ids = stan_model.data["node_ids"]
-
-    elif stan_chains is not None and stan_data is not None:
-        samples, unique_node_ids = (stan_chains, stan_data["node_ids"])
-
-    else:
-        raise ValueError(
-            "stan_model must be provided, or stan_chains and stan_data")
+    samples = stan_model._chains
+    unique_node_ids = stan_model._metadata["node_ids"]
 
     K = samples["truths"].shape[0]
     M = len(set(estimates["node_id"]))
@@ -133,7 +114,16 @@ def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
     mu_samples = np.zeros(N)
     var_samples = np.zeros(N)
 
-    rho_terms = list(combinations(unique_node_ids, 2))
+    # Scale the median submitted parameters between (0, 1) so that we can
+    # estimate the systematic uncertainty from each node.
+    bounds = OrderedDict([
+        ["teff", (3000, 8000)],
+        ["logg", (0, 5)],
+        ["feh", (-3, 0.5)],
+    ])
+    xs = np.clip(
+        [(np.nanmedian(estimates[p]) - l)/(u - l) for p, (l, u) in bounds.items()],
+        0, 1)
 
     for ii, i in enumerate(indices):
 
@@ -141,8 +131,10 @@ def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
         mu_node = np.zeros(M)
         var_node_sys = np.zeros(M)
         var_node_rand = np.zeros(M)
+        var_node_stat = np.zeros(M)
 
         node_ids = np.zeros(M)
+
 
         for j, s in enumerate(estimates.groups.indices[:-1]):
             e = estimates.groups.indices[j + 1]
@@ -153,81 +145,82 @@ def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
 
             # Get the 'unbiased' values.
             mu = np.array(
-                estimates[parameter][s:e] + samples["c0_estimators"][i, k])
+                estimates[parameter][s:e] - samples["biases"][i, k])
 
-            spectrum_snr = np.clip(estimates["snr"][s:e], 1, np.inf)
-            C = np.eye(L) * (samples["alpha"][i, k]**2/spectrum_snr)
+            spectrum_snr = np.clip(estimates["snr"][s:e], 1, 500)
+            
+            var_node_sys[j] = samples["vs_c"][i, j] * np.exp(np.sum([
+                samples["vs_a"][i, l, k] * pow(1 - xs[l], samples["vs_b"][i, l, k]) \
+                    for l in range(len(xs))]))
+
+
+            diag_variance = (samples["alpha_sq"][i, k]/spectrum_snr) \
+                          + var_node_sys[j]
+
+            C = np.eye(L) * diag_variance
 
             W = np.ones((L, 1))
             Cinv = np.linalg.inv(C)
             
-            raise a
-            # this is wrong here because we want to just sum the inv vars
-            var_node_rand[j] = 1.0/np.dot(np.dot(W.T, Cinv), W)
-            mu_node[j] = var_node_rand[j] * np.dot(np.dot(W.T, Cinv), mu)
+            # Get the weighted mean for this node, and the statistical
+            # uncertainty associated with that estimate.
+            var_node_stat[j] = 1.0/np.dot(np.dot(W.T, Cinv), W)
+            mu_node[j] = var_node_stat[j] * np.dot(np.dot(W.T, Cinv), mu)
 
-            var_node_sys[j] = samples["var_sys_estimator"][i, k]
+            weights = 1.0/diag_variance
+            var_node_rand[j] \
+                = np.sqrt(np.sum(weights * (mu - mu_node[j])**2)/np.sum(weights))
 
         node_ids = node_ids.astype(int)
 
         # Construct the covariance matrix for node-to-node measurements.
         # (This includes the systematic component.)
-        C = np.eye(M) * (var_node_rand + var_node_sys)
+        I = np.eye(M)
+        C = I * (var_node_rand + var_node_sys + var_node_stat)
+
+        L = samples["L_corr"][i]
+        rho = np.dot(
+            np.dot(np.eye(L.shape[1]), L),
+            np.dot(np.eye(L.shape[1]), L).T)
 
         for j in range(M):
             for k in range(j + 1, M):
-                # Need the right index to match to rho_estimators.
-                l = rho_terms.index(tuple(node_ids[[j, k]]))
-                term = samples["rho_estimators"][i, l] * (C[j,j] * C[k,k])**0.5
-                C[j, k] = C[k, j] = term
+                a = np.where(node_ids[j] == node_ids)[0][0]
+                b = np.where(node_ids[k] == node_ids)[0][0]
+                C[a, b] = C[b, a] = rho[a, b] * (C[a, a] * C[b, b])**0.5
 
-        # Gauss-Markov theorem.
+        
         W = np.ones((M, 1))
-
-        if np.linalg.cond(C) > np.finfo(matrix.dtype).eps:
-            # Matrix is ill-conditioned.
-            logger.warn("Covariance matrix is ill-conditioned.")
-
-            # Use SVD to invert matrix.
-            U, s, V = np.linalg.svd(C)
-            Cinv = np.dot(np.dot(V.T, np.linalg.inv(np.diag(s))), U.T)
-
-        else:
-            Cinv = np.linalg.inv(C)
+        #Cinv = np.linalg.inv(C)
+        # Use SVD to invert matrix.
+        U, s, V = np.linalg.svd(C)
+        Cinv = np.dot(np.dot(V.T, np.linalg.inv(np.diag(s))), U.T)
 
         var = 1.0/np.dot(np.dot(W.T, Cinv), W)
+
         if var < 0:
             logger.warn("Negative variance returned!")
-            
+            raise a
+
         mu = np.abs(var) * np.dot(np.dot(W.T, Cinv), mu_node)
 
         mu_samples[ii] = mu
         var_samples[ii] = var
-
-    central = np.nanmedian(mu_samples)
-    error = np.sqrt(np.nanmedian(np.abs(var_samples)))
-
-    if np.isfinite(central):
-        assert np.isfinite(error)
-
-    raise a
+        
+    # We have some distribution of mu now (with a statistical uncertainty)
+    c = np.percentile(mu_samples, [16, 50, 84])
+    central, pos_error, neg_error = (c[1], c[2] - c[1], c[0] - c[1])
+    stat_error = np.median(np.sqrt(var_samples))
 
     if update_database:
-
-        # Check if there is an entry for this (wg, cname) in the wg_recommended 
-        # table
-        #q = np.percentile(posterior, [16, 50, 84])
-        #central, pos_error, neg_error = (q[1], q[2] - q[1], q[0] - q[1])
-
         data = {
             "wg": wg, 
             "cname": cname, 
-            "snr": np.nanmedian(estimates["snr"]),
+            "snr": np.nanmedian(np.clip(estimates["snr"], 1, 500)),
             parameter: central, 
-            #"e_pos_{}".format(parameter): pos_error, 
-            #"e_neg_{}".format(parameter): neg_error, 
-            #"e_{}".format(parameter): np.abs([pos_error, neg_error]).max(),
-            "e_{}".format(parameter): error,
+            "e_pos_{}".format(parameter): pos_error, 
+            "e_neg_{}".format(parameter): neg_error, 
+            "e_{}".format(parameter): stat_error,
             "nn_nodes_{}".format(parameter): len(set(estimates["node_id"])),
             "nn_spectra_{}".format(parameter): len(set(estimates["filename"])),
             "provenance_ids_for_{}".format(parameter): list(estimates["id"].data.astype(int))
@@ -235,33 +228,33 @@ def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
 
         record = database.retrieve(
             """ SELECT id
-                  FROM recommended_results
+                  FROM wg_recommended_results
                  WHERE wg = %s
                    AND cname = %s
             """, (wg, cname, ))
 
         if record:
             database.update(
-                """ UPDATE recommended_results
+                """ UPDATE wg_recommended_results
                        SET {}
                      WHERE id = '{}'""".format(
                         ", ".join([" = ".join([k, "%s"]) for k in data.keys()]),
                         record[0][0]),
                 data.values())
             logger.info(
-                "Updated record {} in recommended_results".format(record[0][0]))
+                "Updated record {} in wg_recommended_results".format(record[0][0]))
 
         else:
             new_record = database.retrieve(
-                """ INSERT INTO recommended_results ({})
+                """ INSERT INTO wg_recommended_results ({})
                     VALUES ({}) RETURNING id""".format(
                         ", ".join(data.keys()), ", ".join(["%s"] * len(data))),
                 data.values())
             logger.info(
-                "Created new record {} in recommended_results ({} / {})"\
+                "Created new record {} in wg_recommended_results ({} / {})"\
                 .format(new_record[0][0], wg, cname))
 
-    return (mu_samples, var_samples)
+    return (central, pos_error, neg_error, stat_error)
 
 
 
@@ -455,8 +448,7 @@ class BaseEnsembleModel(object):
 
         return _homogenise_survey_measurements(
             self._database, self._wg, self._parameter, cname,
-            stan_chains=self._chains, stan_data=self._data,
-            **kwargs)
+            stan_model=self, **kwargs)
 
 
     def homogenise_all_stars(self, **kwargs):
@@ -478,31 +470,35 @@ class BaseEnsembleModel(object):
 
         # Get samples and data dictionary -- it will be faster.
         if self._chains is None:
-            ignore_model_pars = kwargs.get("__ignore_model_pars", ("Sigma", ))
-            model_pars = set(self._fit.model_pars).difference(ignore_model_pars)
-            self._chains = self._fit.extract(pars=model_pars)
+            self._extract_chains(**kwargs)
 
         assert self._data is not None
 
         N = len(records)
         for i, cname in enumerate(records["cname"]):
 
-            mu, var = _homogenise_survey_measurements(
+            mu, e_pos, e_neg, e_stat = _homogenise_survey_measurements(
                 self._database, self._wg, self._parameter, cname,
-                stan_chains=self._chains, stan_data=self._data,
-                **kwargs)
-            pos_error = neg_error = np.nanmedian(var**0.5)
-
-            #p = np.percentile(posterior, [16, 50, 84])
-            #value, pos_error, neg_error = (p[1], p[2] - p[1], p[0] - p[1])
-
+                stan_model=self, **kwargs)
+            
             logger.info("Homogenised {parameter} for {cname} (WG{wg} {i}/{N}): "
-                "{mu:.2f} ({pos_error:.2f}, {neg_error:.2f})".format(
-                    parameter=self._parameter, cname=cname, wg=self._wg, i=i+1,
-                    N=N, mu=np.nanmedian(mu), pos_error=pos_error, neg_error=neg_error))
+                "{mu:.2f} ({pos_error:.2f}, {neg_error:.2f}, {stat_error:.2f})"\
+                .format(
+                    parameter=self._parameter, cname=cname, 
+                    wg=self._wg, i=i+1, N=N, mu=mu, 
+                    pos_error=e_pos, neg_error=e_neg, stat_error=e_stat))
 
         if kwargs.get("update_database", True):
             self._database.connection.commit()
+
+        return None
+
+
+    def _extract_chains(self, **kwargs):
+
+        ignore_model_pars = kwargs.get("__ignore_model_pars", ("Sigma", ))
+        model_pars = set(self._fit.model_pars).difference(ignore_model_pars)
+        self._chains = self._fit.extract(pars=model_pars)
 
         return None
 
@@ -539,10 +535,7 @@ class BaseEnsembleModel(object):
 
         elif self._fit is not None:
             # Extract chains.
-            ignore_model_pars = kwargs.get("__ignore_model_pars", ("Sigma", ))
-            model_pars = set(self._fit.model_pars).difference(ignore_model_pars)
-            self._chains = self._fit.extract(pars=model_pars)
-
+            self._extract_chains()
             state["chains"] = self._chains
 
         with open(filename, "wb") as fp:
