@@ -19,8 +19,8 @@ logger = logging.getLogger("ges")
 _DEFAULT_SAVEFIG_KWDS = dict(dpi=300, bbox_inches="tight")
 
 
-def node_systematic_uncertainty(model, quartiles=[2.5, 50, 97.5], N=1000,
-    ylims=None, hide_node_ids=None):
+def node_systematic_uncertainty(model, axes=None, quartiles=[16, 50, 84], Ns=100, 
+    ylims=None):
     """
     Plot the systematic uncertainty from all nodes as a function of the stellar
     parameters.
@@ -34,89 +34,62 @@ def node_systematic_uncertainty(model, quartiles=[2.5, 50, 97.5], N=1000,
     chains = model._chains
     assert chains is not None, "Has the model been sampled?"
 
-    xN = 500 
+    nodes = (model._metadata["node_ids"], model._metadata["node_names"])
 
-    # Get sample indices.
-    K = chains["truths"].shape[0]
-    N = K if not K >= N > 0 else N
-    indices = np.random.choice(range(K), N, replace=False)
+    N = len(nodes[0])
+    colors = brewer2mpl.get_map("Set1", "qualitative", N + 1).mpl_colors
 
-    node_ids = model._data["node_ids"]
-    hide_node_ids = hide_node_ids or []
+    if axes is None:
+        fig, axes = plt.subplots(1, 3)
+    else:
+        fig = axes[0].figure
 
-    L = len(node_ids)
-    colors = brewer2mpl.get_map("Set1", "qualitative", L).mpl_colors[::-1]
+    # MAGIC HACK TODO
     parameters = ("teff", "logg", "feh")
+    bounds = [
+        (3000, 8000),
+        (0, 5),
+        (-3.5, 0.5)
+    ]
 
-    parameter_ranges = {
-        "teff": (3000, 8000),
-        "logg": (0, 5),
-        "feh": (-3, 0.5)
-    }
+    if ylims is None:
+        ylims = dict(teff=(0, 500), logg=(0, 0.5), feh=(0, 0.5))
 
-    fig, axes = plt.subplots(3)
+    K = len(parameters)
+    S = 500
+    xs = np.linspace(0, 1, S)
 
-    x_all = np.array([np.linspace(*(list(parameter_ranges[parameter]) + [xN])) \
-        for parameter in parameters])
+    for i, (ax, bound) in enumerate(zip(axes, bounds)):
 
-    # Design matrix.
-    M = np.ones((7, xN))
-    M[1] = (x_all[0] - parameter_ranges["teff"][0])/np.ptp(parameter_ranges["teff"])
-    M[2] = (x_all[1] - parameter_ranges["logg"][0])/np.ptp(parameter_ranges["logg"])
-    M[3] = (x_all[2] - parameter_ranges["feh"][0])/np.ptp(parameter_ranges["feh"])
-    M[4] = M[1]**2
-    M[5] = M[2]**2
-    M[6] = M[3]**2
+        x = np.linspace(bound[0], bound[1], S)
 
-    for j, (ax, parameter) in enumerate(zip(axes, parameters)):
+        for j, (node_id, node_name) in enumerate(zip(*nodes)):
 
-        x = x_all[j]
-        x_scaled = (x_all[j] - parameter_ranges[parameter][0])/np.ptp(parameter_ranges[parameter])
+            # We want to marginalize over the other stellar parameters.
+            # TODO: THIS IS NOT IT
+            values = chains["vs_a"][:, i, j] * (1 - xs).reshape(-1, 1)**chains["vs_b"][:, i, j]
 
-        for i, node_id in enumerate(set(node_ids).difference(hide_node_ids)): 
-            
-            k = np.where(node_id == node_ids)[0][0]
 
-            coeff = chains["var_sys_coeff"][indices, [k]]
-            y = np.zeros((N * xN, xN))
-            for k, xi in enumerate(x_scaled):
+            sigma = np.sqrt(chains["vs_c"][:, j] * np.exp(values
+                ))
+            q = np.percentile(sigma, quartiles, axis=1)
 
-                M = np.ones((7, xN))
-                M[1] = (x_all[0] - parameter_ranges["teff"][0])/np.ptp(parameter_ranges["teff"])
-                M[2] = (x_all[1] - parameter_ranges["logg"][0])/np.ptp(parameter_ranges["logg"])
-                M[3] = (x_all[2] - parameter_ranges["feh"][0])/np.ptp(parameter_ranges["feh"])
-                M[4] = M[1]**2
-                M[5] = M[2]**2
-                M[6] = M[3]**2
-
-                M[1 + j] = xi
-                M[4 + j] = xi**2
-
-                y[:, k] = np.abs(np.dot(coeff, M)).flatten()
-
-            q = np.percentile(np.sqrt(y), quartiles, axis=0)
-
-            # Get node name.
-            record = model._database.retrieve(
-                "SELECT wg, name FROM nodes WHERE id = %s", (node_id, ))
-            assert record is not None, "Node id {} doesn't exist?".format(node_id)
-            wg, name = record[0]
-
-            ax.plot(x, q[Q / 2], lw=2, c=colors[i], zorder=10,
-                label=r"${{\rm {0}}}$".format(name.strip()))
-
+            ax.plot(x, q[Q / 2], lw=2, c=colors[j], zorder=10,
+                label=r"${{\rm {0}}}$".format(node_name.strip()))
+    
             # Show filled region.
             if Q > 1:
-                ax.fill_between(x, q[0], q[-1], facecolor=colors[i], 
+                ax.fill_between(x.flatten(), q[0], q[-1], facecolor=colors[j], 
                     alpha=0.5, edgecolor="none")
 
-        raise a
+        #ax.set_ylim(ylims.get(parameters[i], None))
+
+    raise a
 
 
 
-def node_uncertainty_with_snr(model, quartiles=[2.5, 50, 97.5], N=1000,
-    show_wg_limit=True, xlims=(1, 500), ylims=None, hide_node_ids=None, 
-    show_data_points=True, **kwargs):
+def node_uncertainty_with_snr(model, quartiles=[16, 50, 84], show_cr_bound=True, 
+    xlims=(1, 100), ylims=None, Ns=100, **kwargs):
     """
     Plot the total node uncertainty as a function of S/N ratio.
 
@@ -139,127 +112,75 @@ def node_uncertainty_with_snr(model, quartiles=[2.5, 50, 97.5], N=1000,
 
     assert chains is not None, "Has the model been sampled?"
 
+    x = np.linspace(xlims[0], xlims[1], 500).reshape(-1, 1)
+    nodes = (model._metadata["node_ids"], model._metadata["node_names"])
+    N = len(nodes[0])
 
-    x = np.linspace(xlims[0], xlims[1], 1000)
-
-    # Get the sample indices.
-    K = chains["truths"].shape[0]
-    N = K if not K >= N > 0 else N
-    indices = np.random.choice(range(K), N, replace=False)
-
-    node_ids = model._data["node_ids"]
-    hide_node_ids = hide_node_ids or []
-
-
-    L = len(node_ids) + 1 if show_wg_limit else len(node_ids)
-    colors = brewer2mpl.get_map("Set1", "qualitative", L).mpl_colors[::-1]
+    colors = brewer2mpl.get_map("Set1", "qualitative", N + 1).mpl_colors
 
     fig, ax = plt.subplots()
 
-    for i, node_id in enumerate(set(node_ids).difference(hide_node_ids)):
+    for i, (node_id, node_name) in enumerate(zip(*nodes)):
 
-        k = np.where(node_id == node_ids)[0][0]
-
-        y = np.sqrt(
-            chains["var_sys_estimator"][indices, k].reshape(-1, 1)/np.ones_like(x) + \
-            chains["alpha"][indices, k].reshape(-1, 1)**2/x)
-        
-        #y = np.sqrt(chains["var_sys_estimator"][indices, k].reshape(-1, 1)/np.ones_like(x))
-        q = np.percentile(y, quartiles, axis=0)
-
-        # Get node name.
-        record = model._database.retrieve(
-            "SELECT wg, name FROM nodes WHERE id = %s", (node_id, ))
-        assert record is not None, "Node id {} doesn't exist?".format(node_id)
-        wg, name = record[0]
+        # Calculate total uncertainty as a function of SNR
+        # (assuming no increase in systematic uncertainty due to different parts
+        #  of parameter space)
+        sigma = np.sqrt(
+            chains["alpha_sq"][:, i].reshape(-1, 1) / x.T +
+            chains["vs_c"][:, i].reshape(-1, 1) * np.ones_like(x.T))
+        q = np.percentile(sigma, quartiles, axis=0)
 
         ax.plot(x, q[Q / 2], lw=2, c=colors[i], zorder=10,
-            label=r"${{\rm {0}}}$".format(name.strip()))
+            label=r"${{\rm {0}}}$".format(node_name.strip()))
 
         # Show filled region.
         if Q > 1:
-            ax.fill_between(x, q[0], q[-1], facecolor=colors[i], 
+            ax.fill_between(x.flatten(), q[0], q[-1], facecolor=colors[i], 
                 alpha=0.5, edgecolor="none")
 
 
-    if show_data_points:
-
-        # The i - 1 is to account for Stan's 1-indexing policy (ew!)
-        truths = np.array([model._data["mu_calibrator"][i - 1] \
-            for i in model._data["calibrator_index"]])
-
-        data_x = model._data["snr_spectrum"]
-
-        for i, node_id in enumerate(set(node_ids).difference(hide_node_ids)):
-
-            k = np.where(node_id == node_ids)[0][0]
-            estimates = model._data["estimates"][:, k] + np.median(chains["c0_estimators"][:, k])
-
-            diffs = estimates - truths
-            # Account for filled-in values.
-            
-            diffs[model._data["var_additive"][:, k] > 0] = np.nan
-           
-            ax.scatter(data_x, np.abs(diffs), facecolor=colors[i], s=50)
-
-            # Show binned std.
-            bins = np.linspace(xlims[0], xlims[1], 25)
-            stds = []
-            for j in range(bins.size -1):
-                in_bin = (bins[j + 1] >= data_x) * (data_x > bins[j])
-
-                value = np.nanstd(diffs[in_bin])
-                if 2 > sum(in_bin): value = np.nan
-                stds.append(value)
-
-            ax.scatter(bins[:-1] + 0.5 * np.diff(bins)[0], stds, 
-                alpha=0.5, lw=2, facecolor="k")
-            #ax.plot(bins[:-1] + 0.5 * np.diff(bins)[0], stds, c='k')
-
-    if show_wg_limit:
+    if show_cr_bound:
         # Calculate the minimum variance as a function of SNR using all the
         # information from every node.
+        
+        C = model._chains["alpha_sq"].shape[0]
+        sigma_wg = np.zeros((C, x.size))
 
-        sigma_wg = np.zeros((N, x.size))
-        for i, index in enumerate(indices):
+        y = np.zeros((Ns, x.size))
+            
+        indices = np.random.choice(range(C), size=Ns, replace=False)
+        for i, j in enumerate(indices):
 
-            Sigma = np.zeros((x.size, L - 1, L - 1))
+            diag = np.sqrt(
+                chains["alpha_sq"][j].reshape(-1, 1) / x.T +
+                chains["vs_c"][j].reshape(-1, 1) * np.ones_like(x.T))
 
-            # Fill up the covariance matrix.
-            for j in range(L - 1):
+            I = np.eye(N)
+            rho = np.dot(
+                np.dot(I, chains["L_corr"][i]),
+                np.dot(I, chains["L_corr"][i]).T)
 
-                var_total = chains["var_sys_estimator"][index, j]/np.ones_like(x) + \
-                            chains["alpha"][index, j].reshape(-1, 1)**2/x
-                Sigma[:, j, j] = var_total
+            for k in range(x.size):
+                
+                Sigma = np.tile(diag[:, k], N).reshape(N, N) \
+                      * np.repeat(diag[:, k], N).reshape(N, N) \
+                      * rho
 
-            # Fill up the correlation coefficients.
-            a = 0
-            for j in range(L - 1):
-                for k in range(j + 1, L - 1):
-                    Sigma[:, j, k] = Sigma[:, k, j] = \
-                        chains["rho_estimators"][index, a] * np.sqrt(Sigma[:, j, j] * Sigma[:, k, k])
-                    a += 1
+                W = np.ones((N, 1))
+                Cinv = np.linalg.inv(Sigma)
+                y[i, k] = 1.0/np.sqrt(np.dot(np.dot(W.T, Cinv), W))
 
-            # Calculate the minimum variance.
+        g = np.nanpercentile(y, quartiles, axis=0)
 
-            for n in range(x.size):
-
-                W = np.ones((L - 1, 1))
-                Cinv = np.linalg.inv(Sigma[n])
-                sigma_wg[i, n] = np.dot(np.dot(W.T, Cinv), W)**-0.5
-
-
-        q = np.nanpercentile(sigma_wg, quartiles, axis=0)
-
-        ax.plot(x, q[Q / 2], lw=2, c=colors[-1], linestyle="--",
+        ax.plot(x.flatten(), g[Q / 2], lw=2, c=colors[-1], linestyle="--",
             label=\
                 r"${\rm Homogenised}$"
                 "\n"
                 r"$({\rm Cram\'er$-${\rm Rao}$ ${\rm bound)}$")
     
         if Q > 1:
-            ax.fill_between(x, q[0], q[-1], facecolor=colors[-1],
-                alpha=0.5, edgecolor="none", zorder=10)
+            ax.fill_between(x.flatten(), g[0], g[-1], 
+                facecolor=colors[-1], alpha=0.5, edgecolor="none", zorder=10)
 
     ax.set_xlim(*xlims)
     ax.set_xlabel(r"${\rm Signal}$-${\rm to}$-${\rm noise}$ ${\rm ratio},$ $S/N$ $({\rm pixel}^{-1})$")
@@ -278,7 +199,7 @@ def node_uncertainty_with_snr(model, quartiles=[2.5, 50, 97.5], N=1000,
 
     ax.set_ylim(ylims)
     
-    legend_kwds = dict(loc="upper right", frameon=False)
+    legend_kwds = dict(loc="upper center", ncol=2, frameon=False)
     legend_kwds.update(kwargs.get("legend_kwds", {}))
     plt.legend(**legend_kwds)
     
@@ -435,3 +356,73 @@ def node_correlations(model, reorder=True, plot_edges=True,
     plt.show()
 
     return fig
+
+
+
+
+def biases(model, ax=None, N_bins=50, xlabel=None, legend=True, **kwargs):
+    """
+    Plot the distribution of biases from all nodes.
+
+    :param model:
+        A trained ensemble model.
+
+    :param ax: [optional]
+        The axes to plot the distributions.
+    """
+
+    if ax is None:
+        fig, ax = plt.subplots()
+    else:
+        fig, ax = ax.figure, ax
+
+    N = model._chains["biases"].shape[1]
+
+    colors = brewer2mpl.get_map("Set1", "qualitative", N).mpl_colors
+
+    max_abs_bias = np.max(np.abs(model._chains["biases"]))
+    bins = np.linspace(-max_abs_bias, +max_abs_bias, N_bins)
+
+    nodes = (model._metadata["node_ids"], model._metadata["node_names"])
+    for i, (node_id, node_name) in enumerate(zip(*nodes)):
+
+        ax.hist(model._chains["biases"][:, i], 
+            facecolor=colors[i], edgecolor=colors[i], bins=bins, 
+            alpha=0.5, lw=2, normed=True, histtype="stepfilled",
+            label=r"${{\rm {0}}}$".format(node_name.strip()))
+
+    latex_labels = {
+        "teff": r"${\rm Bias}$ ${\rm in}$ ${\rm effective}$ ${\rm temperature},$ "
+                r"$T_{\rm eff}$ $({\rm K})$",
+        "logg": r"${\rm Bias}$ ${\rm in}$ ${\rm surface}$ ${\rm gravity},$ "
+                r"$\log{g}$ $({\rm dex})$",
+        "feh": r"${\rm Bias}$ ${\rm in}$ ${\rm metallicity},$ "
+               r"$[{\rm Fe/H}]$ $({\rm dex})$"
+    }
+
+    ax.set_xlabel(
+        xlabel or latex_labels.get(model._parameter, model._parameter))
+    ax.set_ylabel(r"${\rm Frequency}$")
+
+    if legend:
+        kwds = dict(frameon=False, ncol=2, loc="upper center")
+        kwds.update(kwargs.get("legend_kwds", {}))
+        ax.legend(**kwds)
+
+    ax.set(adjustable="box-forced")
+
+    fig.tight_layout()
+    # Monkey patch the savefig to incorporate the default keywords to ensure
+    # the resulting figure is ready for publication.
+
+    old_savefig = fig.savefig
+    def new_savefig(self, *args, **kwargs):
+        kwds = _DEFAULT_SAVEFIG_KWDS.copy()
+        kwds.update(kwargs)
+        return old_savefig(self, *args, **kwds)
+
+    fig.savefig = new_savefig
+    return fig
+
+
+
