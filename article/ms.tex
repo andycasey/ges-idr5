@@ -9,19 +9,22 @@
 
 \newcommand{\acronym}[1]{{\small{#1}}}
 
+\newcommand{\ges}{\acronym{GES}}
 \newcommand{\project}[1]{\textsl{#1}}
+
+\newcommand{\gaiaeso}{\project{Gaia-ESO}}
 
 \newcommand{\teff}{T_{\mathrm{eff}}}
 \newcommand{\logg}{\log g}
 \newcommand{\feh}{[\mathrm{Fe/H}]}
-
+\newcommand{\normal}[2]{\mathcal{N}\left(#1, #2\right)}
 
 \begin{document}
 \title{The Gaia-ESO Survey: Combined estimates from multiple stellar analysis pipelines}
 
 \author{
-    Andrew~R.~Casey\altaffilmark{1}
-}
+    Andrew~R.~Casey\altaffilmark{1},
+   }
 
 
 \begin{abstract}
@@ -36,6 +39,22 @@
 
 \section{Introduction} 
 \label{sec:introduction}
+
+% In terms of telescope time cost, GES is the largest by far.
+
+% Huge time allocation to do heaps of cool shit.
+
+% Analyse all spectral types
+
+% Provides a ground-based complement to the Gaia mission.
+
+% Huge collaboration, most of which were in-fighting previously.
+
+% Through GES they started working together.... 
+
+% Experts in different fields, etc.
+
+% Multiple analysis strategy.
 
 
 \section{Data}
@@ -71,12 +90,127 @@
 
 % What do the nodes provide? Most parameters, flags, etc.
 
-
 % CONTINUE from here:
 % Stellar parameter determination
 
 
 % Stellar parameter homogenisation
+\subsection{Stellar parameter homogenisation}
+\label{sec:stellar-parameter-homogenisation}
+
+
+Flag propagation.
+
+\noindent{}We make the following assumptions when constructing a model for homogenisation:
+
+\begin{itemize}
+    \item   \emph{The uncertainties reported by each node are incorrect.}
+            This assumption is based on a cursory examination of the data:
+            some nodes do not provide uncertainties in stellar parameters, and
+            the uncertainties reported by some nodes could vary in percent by
+            two orders of magnitude. Therefore, we assume that each node only
+            provides a point estimate for astrophysical parameters.
+
+    \item   \emph{Every node provides a biased estimate of stellar parameters.}
+            We assume that every node has an unknown bias $\beta$ (offset) in each
+            astrophysical parameter, 
+
+            \begin{eqnarray}
+                \mu_{true} = \mu_{node} + \beta_{node} + \epsilon
+            \end{eqnarray}
+
+            \noindent{}where $\epsilon$ represents the noise in the estimate.
+
+    \item   \emph{The unbiased stellar parameters from any two nodes are correlated.}
+            After accounting for individual node biases, we assume that the 
+            stellar parameters reported by any two nodes will be correlated
+            to some degree. The level of correlation between two nodes is unknown.
+            This assumption arises from commonalities that led to the estimates from
+            each node. Specifically: all nodes are instructed to use a common list 
+            of line transitions, the same MARCS model photospheres, some nodes employ
+            similar methods (e.g., spectral synthesis), and all nodes derive their 
+            estimates from the same data (in some instances, even the same 
+            continuum-normalized spectra are used).
+
+            We note that even two nodes with identical methods are not guaranteed
+            to be perfectly correlated, because the \emph{choice} of which transitions
+            or spectral regions to use is not prescribed.
+
+    \item   \emph{There are gaps in the data.} 
+            No spectrum is guaranteed to have stellar parameters reported by all
+            nodes. This assumption is a consequence of the different expertise in
+            \gaiaeso: no node or method is expert across the entire range of parameter
+            space explored. If stellar parameters are not reported, then the reason 
+            must be specified through a \texttt{TECH} flag (see Section \ref{sec:flags}
+            on flag usage).
+
+    \item   \emph{Random uncertainties in stellar parameters will increase with
+            decreasing S/N ratio.}
+
+    \item   \emph{All `well-studied' stars have noisy measurement, and their values
+            are not known with infinite precision.} But we assume they are unbiased!
+
+    \item   \emph{The systematic uncertainty will vary across parameter space.}
+
+    \item   \emph{All stellar parameter estimates are normally-distributed draws about 
+            the true astrophysical value.}
+
+    \item   \emph{The effective temperature $\teff$, surface gravity $\logg$, and
+            metallicity $\feh$ for a single star are uncorrelated.}
+            This assumption is provably incorrect, and is made for practical reasons
+            only. In Section \ref{sec:scaling-the-model} we describe how the number
+            of model parameters scales, and in Section \ref{sec:model-parameterisation}
+            we explain how the inference problem itself is numerically unstable.
+            Including correlations in stellar parameters would require a constant
+            correlation term $\rho$, or modeling $\rho$ as a function of the stellar
+            parameters. In either case, the number of model parameters that require
+            MCMC will immediately increase by at least factor of three (e.g.,
+            $\gtrsim5{,}000$ parameters), amplifying numerical stability issues and
+            substantially increasing the requisite number of MCMC samples. For these
+            reasons, simultaneously modeling the correlation between stellar
+            parameters has been left for an extension of this work.
+ 
+\end{itemize}
+
+Given these assumptions the model we adopt is
+\begin{eqnarray}
+    \mu_{bm} = \normal{\mu_{true}}{\sigma_{bm}} 
+\end{eqnarray} 
+
+
+% List of the model parameters
+
+We list the nomenclature and descriptions for all model parameters in Table 
+\ref{tab:model-parameters}. The number of total model parameters is given by
+\begin{eqnarray}
+    N_{parameters} = N_{calibrators} + N_{missing} + 6N_{nodes} + \frac{N_{nodes}!}{2(N_{nodes} - 2)!}
+\end{eqnarray}
+where $N_{calibrators}$ accounts for the true values of the calibrators, the
+$N_{missing}$ models the missing data points for the calibrator spectra, the
+$6N_{nodes}$ summarises parameters that model biases, as well as systematic
+and random uncertainties. The final term $\frac{N_{nodes}!}{2(N_{nodes} - 2)!}$
+is the number of correlation coefficients between all nodes.\footnote{In practice
+we include the Cholesky decomposition $L$ of the $N \times N$ correlation matrix $\rho$
+as model parameters instead of directly modeling the $\rho$ terms.  The correlation
+matrix can be reconstructed by $\rho = (IL)\cdot(IL)^T$ where $I$ is the $N \times N$
+identity matrix. This parameterisation helps ensure that the resulting covariance
+matrix $\mathbf{\Sigma}$ is positive semi-definite, and can therefore be used for
+sampling.} 
+ 
+
+
+ 
+
+% Priors 
+
+% How does the model scale?
+
+% The implementation details.
+% Inheritly unstable
+% Cholesky decomposition
+
+
+
 
 % Abundance determination
 
