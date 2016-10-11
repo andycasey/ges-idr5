@@ -189,25 +189,36 @@ where $N_{calibrators}$ accounts for the true values of the calibrators, the
 $N_{missing}$ models the missing data points for the calibrator spectra, the
 $6N_{nodes}$ summarises parameters that model biases, as well as systematic
 and random uncertainties. The final term $\frac{N_{nodes}!}{2(N_{nodes} - 2)!}$
-is the number of correlation coefficients between all nodes.\footnote{In practice
+is the number of correlation coefficients between all nodes.\footnote{
+This inference problem is numerically unstable, as there are many model parameters
+which are used toi
+
+
+ construct a covariance matrix that is sampled
+
+
+In practice
 we include the Cholesky decomposition $L$ of the $N \times N$ correlation matrix $\rho$
 as model parameters instead of directly modeling the $\rho$ terms.  The correlation
 matrix can be reconstructed by $\rho = (IL)\cdot(IL)^T$ where $I$ is the $N \times N$
 identity matrix. This parameterisation helps ensure that the resulting covariance
 matrix $\mathbf{\Sigma}$ is positive semi-definite, and can therefore be used for
 sampling.} 
+
+% Priors
+
+
+We implemented the model in \texttt{Stan}, a probabilistic programming
+language, and the code describing our parameterisation is included as Appendix \ref{
+appendix:stan-code}. We initialised the model with $\mu_{true}$ at the central
+calibrator values, and set XXXXXX, with no correlation between any nodes. We
+optimized all parameters in \texttt{Stan} using the Broyden-Fletcher-Goldfarb-Shanno
+algorithm. The optimized point was used as an initialisation point for Markov Chain
+Monte-Carlo (MCMC) sampling.
+
+N chains, thinning, N iterations. Convergence criteria.
  
-
-
  
-
-% Priors 
-
-% How does the model scale?
-
-% The implementation details.
-% Inheritly unstable
-% Cholesky decomposition
 
 
 
