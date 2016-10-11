@@ -3,6 +3,10 @@
 from code.model import ensemble, plot
 
 
+
+raise a
+
+
 for wg in (11, ):
 
     for parameter in ("teff", "logg", "feh"):

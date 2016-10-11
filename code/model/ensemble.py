@@ -259,7 +259,127 @@ def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
 
 
 
+class MedianModel(object):
 
+    def __init__(self, database, wg, parameter, default_sigma=None, **kwargs):
+        self._database = database
+        self._wg = wg
+        self._parameter = parameter
+        if default_sigma is None:
+            self._default_sigma = {
+                "xi": 0.5,
+                "alpha_fe": 0.5,
+            }.get(parameter)
+        
+        else:
+            self._default_sigma = default_sigma
+
+        return None
+
+
+    def _homogenise_survey_measurement(self, cname, update_database=False,
+        **kwargs):
+
+        param = self._parameter
+
+        # Just return a median and stddev.
+        records = self._database.retrieve_table(
+            """ SELECT results.id, node_id, filename, {parameter}, e_{parameter}
+                  FROM results, nodes
+                 WHERE results.node_id = nodes.id
+                   AND nodes.wg = '{wg}'
+                   AND results.cname = '{cname}'
+                   AND results.passed_quality_control;""".format(
+                    parameter=param, wg=self._wg, cname=cname))
+
+        if records is None:
+            return {}
+
+        N = len(set(records["node_id"]))
+        S = len(set(records["filename"]))
+        mu = np.nanmedian(records[param])
+        sigma = np.nanstd(records[param])/np.sqrt(S)
+        provenance = list(records["id"].data.astype(int))
+
+        if np.isfinite(mu) and (not np.isfinite(sigma) or sigma <= 0):
+            sigma = kwargs.get("default_sigma", self._default_sigma)
+
+        result = {
+            "wg": self._wg, 
+            "cname": cname, 
+            param: mu, 
+            "e_{}".format(param): sigma,
+            "nn_nodes_{}".format(param): N,
+            "nn_spectra_{}".format(param): S,
+            "provenance_ids_for_{}".format(param): provenance
+        }
+
+        logger.info(
+            "Homogenised {} for {}/{}: {:.2f} +/- {:.2f} ({} spectra; {} nodes)"\
+            .format(param, self._wg, cname, mu, sigma, S, N))
+
+        if update_database:
+
+            record = self._database.retrieve(
+                """ SELECT id
+                      FROM wg_recommended_results
+                     WHERE wg = %s
+                       AND cname = %s
+                """, (self._wg, cname, ))
+
+            if record:
+                self._database.update(
+                    """ UPDATE wg_recommended_results
+                           SET {}
+                         WHERE id = '{}'""".format(
+                            ", ".join([" = ".join([k, "%s"]) for k in result.keys()]),
+                            record[0][0]),
+                    result.values())
+                logger.info(
+                    "Updated record {} in wg_recommended_results".format(record[0][0]))
+
+            else:
+                new_record = self._database.retrieve(
+                    """ INSERT INTO wg_recommended_results ({})
+                        VALUES ({}) RETURNING id""".format(
+                            ", ".join(result.keys()), ", ".join(["%s"] * len(result))),
+                    result.values())
+                logger.info(
+                    "Created new record {} in wg_recommended_results ({} / {})"\
+                    .format(new_record[0][0], self._wg, cname))
+
+        return result
+
+
+    def homogenise_all_stars(self, update_database=False, **kwargs):
+        """
+        Homogenise the stellar astrophysical parameter for all stars in the
+        database that are analysed by the current working group. 
+
+        Note: this will homogenise a single parameter for each survey object.
+        """
+
+        # Get all unique cnames.
+        records = self._database.retrieve_table(
+            """ WITH s AS (
+                    SELECT id FROM nodes WHERE wg = %s)
+                SELECT DISTINCT ON (r.cname) r.cname
+                FROM   s, results AS r
+            WHERE r.node_id = s.id
+            ORDER BY cname DESC""", (self._wg, ))
+
+        # Get samples and data dictionary -- it will be faster.
+        
+        N = len(records)
+        for i, cname in enumerate(records["cname"]):
+
+            self._homogenise_survey_measurement(
+                cname, update_database=update_database, **kwargs)
+
+        if update_database:
+            self._database.connection.commit()
+
+        return None
 
 
 class BaseEnsembleModel(object):

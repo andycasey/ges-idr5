@@ -12,7 +12,7 @@ from collections import OrderedDict
 
 
 from code import GESDatabase
-from code.model.ensemble import EnsembleModel
+from code.model.ensemble import EnsembleModel, MedianModel
 
 # Initialize logging.
 logger = logging.getLogger("ges")
@@ -42,6 +42,13 @@ sample_kwds = dict(chains=4, iter=10000, thin=10)
 
 finite = np.isfinite(benchmarks["TEFF"] * benchmarks["LOGG"] * benchmarks["FEH"])
 benchmarks = benchmarks[finite]
+
+model = MedianModel(database, 11, "xi")
+model.homogenise_all_stars(update_database=True, default_sigma=0.5)
+
+model = MedianModel(database, 11, "alpha_fe")
+model.homogenise_all_stars(update_database=True, default_sigma=0.10)
+
 
 models = {}
 for wg in wgs:

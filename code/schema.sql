@@ -224,6 +224,21 @@ CREATE TABLE wg_recommended_results (
 ALTER TABLE wg_recommended_results ADD COLUMN id BIGSERIAL PRIMARY KEY;
 CREATE UNIQUE INDEX single_cname_result_per_wg ON wg_recommended_results (wg, cname);
 
+ALTER TABLE wg_recommended_results ALTER COLUMN nn_nodes_teff SET DEFAULT 0;
+ALTER TABLE wg_recommended_results ALTER COLUMN nn_nodes_logg SET DEFAULT 0;
+ALTER TABLE wg_recommended_results ALTER COLUMN nn_nodes_feh SET DEFAULT 0;
+ALTER TABLE wg_recommended_results ALTER COLUMN nn_nodes_xi SET DEFAULT 0;
+ALTER TABLE wg_recommended_results ALTER COLUMN nn_nodes_mh SET DEFAULT 0;
+ALTER TABLE wg_recommended_results ALTER COLUMN nn_nodes_alpha_fe SET DEFAULT 0;
+
+ALTER TABLE wg_recommended_results ALTER COLUMN nn_spectra_teff SET DEFAULT 0;
+ALTER TABLE wg_recommended_results ALTER COLUMN nn_spectra_logg SET DEFAULT 0;
+ALTER TABLE wg_recommended_results ALTER COLUMN nn_spectra_feh SET DEFAULT 0;
+ALTER TABLE wg_recommended_results ALTER COLUMN nn_spectra_xi SET DEFAULT 0;
+ALTER TABLE wg_recommended_results ALTER COLUMN nn_spectra_mh SET DEFAULT 0;
+ALTER TABLE wg_recommended_results ALTER COLUMN nn_spectra_alpha_fe SET DEFAULT 0;
+
+
 ALTER TABLE wg_recommended_results ADD CONSTRAINT teff_provenance_required
     CHECK (teff = 'NaN' OR provenance_ids_for_teff is not null);
 ALTER TABLE wg_recommended_results ADD CONSTRAINT logg_provenance_required

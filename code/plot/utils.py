@@ -44,6 +44,10 @@ def wg_as_int(wg):
 
 def mh_or_feh(table):
 
+    if table["mh"][0] is None:
+        return "feh"
+    elif table["feh"][0] is None:
+        return "mh"
     feh = np.sum(np.isfinite(table["feh"]))
     mh = np.sum(np.isfinite(table["mh"]))
 

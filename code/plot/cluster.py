@@ -103,7 +103,7 @@ def param_vs_param(database, wg, node_name, ges_fld, reference_parameter,
 
 
 
-def cluster(database, wg, node_name, ges_fld, vel_range=None,
+def cluster(database, ges_fld, wg, node_name=None, vel_range=None,
     isochrone_filename=None, limit_to_isochrone_range=False, ax=None,
     no_tech_flags=False, show_legend=True, **kwargs):
     """
@@ -113,11 +113,15 @@ def cluster(database, wg, node_name, ges_fld, vel_range=None,
     :param database:
         A database for transactions.
 
+    :param ges_fld:
+        The `GES_FLD` entry for the cluster.
+
     :param wg:
         The working group.
 
-    :param node_name:
-        The name of the node to show results for.
+    :param node_name: [optional]
+        The name of the node to show results for. If `None` is provided, then
+        recommended results will be shown for the specified working group `wg`.
 
     :param ges_fld:
         The name of the cluster (as listed in GES_FLD).
@@ -143,9 +147,16 @@ def cluster(database, wg, node_name, ges_fld, vel_range=None,
     vmin = kwargs.pop("vmin", None)
     vmax = kwargs.pop("vmax", None)
 
+    if node_name is not None:
+        # Get the data.
+        table = "results"
+        node_id = database.retrieve_node_id(wg, node_name)
+        sql_constraint = "AND r.node_id = '{}'".format(node_id)
 
-    # Get the data.
-    node_id = database.retrieve_node_id(wg, node_name)
+    else:
+        table = "wg_recommended_results"
+        sql_constraint = "AND r.wg = '{}'".format(wg)
+
     
     if no_tech_flags:
         tech_flag_constraint = " AND TRIM(r.TECH) = ''"
@@ -156,20 +167,22 @@ def cluster(database, wg, node_name, ges_fld, vel_range=None,
     # Collect the results for this node.
     results = database.retrieve_table(
         """ SELECT  DISTINCT ON (r.cname)
-                    r.cname, r.node_id, r.setup, s.filename, s.vel, s.e_vel, 
+                    r.cname, s.vel, s.e_vel, 
                     r.teff, r.e_teff, r.logg, r.e_logg, r.feh, r.e_feh, r.mh, r.e_mh
-            FROM    results r, spectra s 
+            FROM    {table} r, spectra s 
             WHERE   r.cname = s.cname
-                AND TRIM(s.ges_fld) = %s
-                AND s.vel > %s
-                AND s.vel < %s
-                AND node_id = %s""" + tech_flag_constraint,
-                (ges_fld, min(vel_range), max(vel_range), node_id))
-
+                AND TRIM(s.ges_fld) = '{ges_fld}'
+                AND s.vel > '{lower_vel}'
+                AND s.vel < '{upper_vel}'
+                {sql_constraint} {tech_flag_constraint}""".format(
+                    table=table, ges_fld=ges_fld, 
+                    sql_constraint=sql_constraint,
+                    tech_flag_constraint=tech_flag_constraint,
+                    lower_vel=min(vel_range), upper_vel=max(vel_range)))
 
     if results is None:
-        logger.warn("No cluster data on {} from {}/{}".format(ges_fld,
-            wg, node_name))
+        logger.warn("No cluster data on {} from {}/{}".format(
+            ges_fld, wg, node_name))
         return None
 
     # Draw velocity/metallicity. Highlight members.
@@ -188,7 +201,6 @@ def cluster(database, wg, node_name, ges_fld, vel_range=None,
     mh_col = utils.mh_or_feh(results)
 
     # Draw HRD, distinguishing markers by setup.
-    print(np.nanmin(results[mh_col]), np.nanmax(results[mh_col]))
     scat = ax_hrd.scatter(results["teff"], results["logg"], c=results[mh_col],
         label=None, cmap="viridis", vmin=vmin, vmax=vmax)
     ax_hrd.errorbar(results["teff"], results["logg"],
