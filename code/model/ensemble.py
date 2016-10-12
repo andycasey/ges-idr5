@@ -406,7 +406,7 @@ class BaseEnsembleModel(object):
         return None
 
 
-    def _load_model(self, recompile, overwrite, path=None):
+    def _load_model(self, recompile=False, overwrite=False, path=None, **kwargs):
         """
         Load the model.
 
@@ -421,6 +421,9 @@ class BaseEnsembleModel(object):
             `self._MODEL_PATH`
         """
 
+        if getattr(self, "_model", None) is not None:
+            return self._model
+
         # Is the model already compiled?
         path = path or self._MODEL_PATH
         compiled_path = "{}.compiled".format(path)
@@ -431,10 +434,9 @@ class BaseEnsembleModel(object):
                 model = pickle.load(fp)
 
             # Check that the model code is the same as what we expected.
-            with open(path, "r") as fp:
-                model_code = fp.read()
-
-            if model_code != model.model_code:
+            assert self._model_code is not None
+            
+            if self._model_code != model.model_code:
                 logger.warn("Pre-compiled model differs to the code in {}; "\
                     "re-compiling".format(path))
                 recompile = True
@@ -446,15 +448,16 @@ class BaseEnsembleModel(object):
                 break
 
         else:
-            logger.info("Compiling model from {}".format(path))
+            logger.info("Compiling model")
 
-            model = stan.StanModel(file=path)
+            model = stan.StanModel(model_code=self._model_code)
 
             # Save the compiled model.
             if not os.path.exists(compiled_path) or overwrite:
                 with open(compiled_path, "wb") as fp:
                     pickle.dump(model, fp, -1)
 
+        self._model = model
         return model
 
 
@@ -513,6 +516,8 @@ class BaseEnsembleModel(object):
             Overwrite the compiled model path if it already exists.
         """
 
+        self._load_model(recompile=recompile, overwrite=overwrite, **kwargs)
+
         kwds = self._validate_stan_inputs(data=data, **kwargs)
         return self._model.optimizing(**kwds)
 
@@ -546,6 +551,8 @@ class BaseEnsembleModel(object):
         :param overwrite: [optional]
             Overwrite the compiled model path if it already exists.
         """
+
+        self._load_model(recompile=recompile, overwrite=overwrite, **kwargs)
 
         kwds = self._validate_stan_inputs(
             data=data, chains=chains, iter=iter, warmup=warmup, **kwargs)
