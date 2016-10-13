@@ -38,7 +38,7 @@ parameter_scales = OrderedDict([
     ("feh", 0.25)
 ])
 
-sample_kwds = dict(chains=4, iter=10000, thin=10)
+sample_kwds = dict(chains=2, iter=2000)
 
 finite = np.isfinite(benchmarks["TEFF"] * benchmarks["LOGG"] * benchmarks["FEH"])
 benchmarks = benchmarks[finite]

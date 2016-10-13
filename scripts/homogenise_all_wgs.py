@@ -12,7 +12,7 @@ from collections import OrderedDict
 
 
 from code import GESDatabase
-from code.model.ensemble import  SingleParameterEnsembleModel
+from code.model.ensemble import  SingleParameterEnsembleModel, EnsembleModelWithSysVarianceModel
 
 # Initialize logging.
 logger = logging.getLogger("ges")
@@ -40,7 +40,8 @@ parameter_scales = OrderedDict([
 
 sample_kwds = dict(chains=4, iter=2000)
 
-benchmarks = benchmarks[(benchmarks["FEH"] > -2) * (benchmarks["TEFF"] > 4000)]
+finite = np.isfinite(benchmarks["TEFF"] * benchmarks["LOGG"] * benchmarks["FEH"])
+benchmarks = benchmarks[finite]
 
 models = {}
 for wg in wgs:
@@ -53,39 +54,39 @@ for wg in wgs:
             model = SingleParameterEnsembleModel.read(model_path, database)
 
         else:
-            model = SingleParameterEnsembleModel(database, wg, parameter, benchmarks)
+            model = EnsembleModelWithSysVarianceModel(database, wg, parameter, benchmarks)
             data, metadata = model._prepare_data(default_sigma_calibrator=scale)
 
             init = {
+                # -1 offset to account for Stan's 1-indexing.
                 "truths": data["mu_calibrator"],
-                "var_sys_estimator": (scale/5.)**2 * np.ones(data["N_estimators"]),
+                #"var_sys_estimator": (scale/5.)**2 * np.ones(data["N_estimators"]),
                 "alpha": np.mean([data["lower_alpha"], data["upper_alpha"]]) \
                     * np.ones(data["N_estimators"]),
                 "rho_estimators": np.zeros(metadata["N_pairwise_estimators"]),
-                "c0_estimators": np.zeros(data["N_estimators"])
+                "c0_estimators": np.zeros(data["N_estimators"]),
+
             }
 
+            init["vs_log_c"] = np.log(np.ones(data["N_estimators"]) * scale)
+            init["vs_a"] = np.ones(data["N_estimators"])
+            init["vs_b"] = 2 * np.ones(data["N_estimators"])
+
+            raise a
             op_params = model.optimize(data, init=init, iter=100000)
 
+            raise a
             fit = model.sample(data, init=op_params, **sample_kwds)
 
             model.write(model_path, overwrite=True)
 
+        # Keep the model.
+        models[wg][parameter] = model
 
-        fig = model.plot_node_correlations()
-        fig.savefig("wg{}-{}-node-correlations.pdf".format(wg, parameter))
-
-        fig = model.plot_node_uncertainty_with_snr(
-            show_data_points=False, legend_kwds=dict(ncol=2))
-        fig.savefig("wg{}-{}-node-uncertainties.pdf".format(wg, parameter))
-
-        continue
 
         # Homogenise this parameter for all stars.
         model.homogenise_all_stars(update_database=True)
 
-        # Keep the model.
-        models[wg][parameter] = model
 
 # TODO:
 # - VROT
