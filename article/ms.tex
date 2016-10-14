@@ -180,7 +180,7 @@ stars analysed by WG11 had all results discarded due to flag usage (of 4,941; 11
 
 \noindent{}We make the following assumptions when constructing a model for homogenisation:
 
-\begin{itemize}
+\begin{enumerate}
     \item   \emph{The uncertainties reported by each node are incorrect.}
             This assumption is based on a cursory examination of the data:
             some nodes do not provide uncertainties in stellar parameters, and
@@ -196,7 +196,9 @@ stars analysed by WG11 had all results discarded due to flag usage (of 4,941; 11
                 \mu_{true} = \mu_{node} + \beta_{node} + \epsilon
             \end{eqnarray}
 
-            \noindent{}where $\epsilon$ represents the noise in the estimate.
+            \noindent{}where $\epsilon$ represents the noise in the estimate. As per
+            assumption (1), we assert that the distribution of $\epsilon$ is unknown
+            on a per-node basis.
 
     \item   \emph{The unbiased stellar parameters from any two nodes are correlated.}
             After accounting for individual node biases, we assume that the 
