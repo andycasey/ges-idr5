@@ -198,33 +198,42 @@ stars analysed by WG11 had all results discarded due to flag usage (of 4,941; 11
 
             \noindent{}where $\epsilon$ represents the noise in the estimate. As per
             assumption (1), we assert that the distribution of $\epsilon$ is unknown
-            on a per-node basis.
+            for each node. 
 
     \item   \emph{The unbiased stellar parameters from any two nodes are correlated.}
-            After accounting for individual node biases, we assume that the 
-            stellar parameters reported by any two nodes will be correlated
-            to some degree. The level of correlation between two nodes is unknown.
+            After accounting for individual node biases, we assume that the stellar 
+            parameters reported by any two nodes will be correlated to some degree. 
+            The level of correlation between two nodes is unknown \emph{a priori}.
             This assumption arises from commonalities that led to the estimates from
             each node. Specifically: all nodes are instructed to use a common list 
-            of line transitions, the same MARCS model photospheres, some nodes employ
-            similar methods (e.g., spectral synthesis), and all nodes derive their 
-            estimates from the same data (in some instances, even the same 
-            continuum-normalized spectra are used).
+            of line transitions, the same MARCS model photospheres. Moreover, some 
+            nodes employ similar methods (e.g., spectral synthesis), and importantly
+            \emph{all} nodes derive their estimates from the same data (in some 
+            instances, even the same continuum-normalized spectra are used).
 
             We note that even two nodes with identical methods are not guaranteed
             to be perfectly correlated, because the \emph{choice} of which transitions
             or spectral regions to use is not prescribed.
 
-    \item   \emph{There are gaps in the data.} 
+    \item   \emph{There are missing data.} 
             No spectrum is guaranteed to have stellar parameters reported by all
             nodes. This assumption is a consequence of the different expertise in
             \gaiaeso: no node or method is expert across the entire range of parameter
             space explored. If stellar parameters are not reported, then the reason 
-            must be specified through a \texttt{TECH} flag (see Section \ref{sec:flags}
-            on flag usage).
+            must be specified with a technical flag (\texttt{TECH}; see Section 
+            \ref{sec:technical-flags}).
 
     \item   \emph{Random uncertainties in stellar parameters will increase with
             decreasing S/N ratio.}
+            Specifically we assume that the random uncertainty $\sigma_{rand}$ will
+            increase as,
+
+            \begin{eqnarray}
+                \sigma_{rand,node} = \frac{\alpha_{node}}{\sqrt{S/N}}
+            \end{eqnarray}
+
+            \noindent{}where $S/N$ is the signal-to-noise ratio, and $\alpha$ is
+            unknown for each node.
 
     \item   \emph{All `well-studied' stars have noisy measurement, and their values
             are not known with infinite precision.} But we assume they are unbiased!
@@ -249,7 +258,7 @@ stars analysed by WG11 had all results discarded due to flag usage (of 4,941; 11
             reasons, simultaneously modeling the correlation between stellar
             parameters has been left for an extension of this work.
  
-\end{itemize}
+\end{enumerate}
 
 Given these assumptions the model we adopt is
 \begin{eqnarray}
