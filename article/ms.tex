@@ -28,7 +28,7 @@
 
 
 \begin{abstract}
-  Some stuff
+Some stuff
 \end{abstract}
 
 
@@ -93,13 +93,90 @@
 % CONTINUE from here:
 % Stellar parameter determination
 
+\subsection{Technical flags}
+\label{sec:technical-flags}
+
+In the fifth \gaiaeso\ data release we required all analysis nodes to either
+supply results for a spectrum, or to provide a technical flag (column \texttt{TECH})
+explaining no results were reported. We list all relevant technical flags and their
+interpretation in Appendix \ref{app:flags}. There is a large variation in specificity 
+between flags. For example, some flags indicate that an analysis pipeline did not 
+converge (for whatever reason), whereas some flags indicate a result is uncertain 
+due to a data reduction issue producing a `picket-fence'-like pattern in the 
+spectrum. The former is provided automatically and may reflect uncertainty 
+\emph{only} in the results from the node who reported the flag. However, the latter 
+example was presumably flagged because a human looked at the data, and this flag
+should raise uncertainty in \emph{all} results using the same spectrum.  Similar 
+examples can be drawn for flags describing issues intrinsic to the star (e.g., high
+rotational velocity), and not just a single spectrum.  For these reasons, there are 
+situations where technical flags ought to be propagated to other results derived from 
+the same spectrum, or other results reported for the same star.
+
+
+We investigated usage patterns between nodes to evaluate whether any flag propagation
+was warranted. A heatmap of common flag usage for WG11 nodes is shown in Figure
+\ref{fig:wg11-flag-heatmap}.
+% TODO: Include heat maps of other WGs?
+If all nodes reported the same flags under common conditions, then the node-to-node 
+segments in Figure \ref{fig:wg11-flag-heatmap} would show 1-to-1 correlations. This is 
+not the case; we find the flag usage to be mostly uncorrelated between different nodes. 
+When one node reports a \emph{specific} flag indicating an issue that is intrinsic to 
+the spectrum or star, it is highly unlikely that \emph{any} other node has reported the 
+same problem.\footnote{In some sense, this is a consequence of having `many eyes on the 
+data'.} The most significant correlations are seen in the usage of non-descript flags,
+where nodes will report that the derived stellar parameters are outside of the range 
+where they consider their results to be `physically realistic' (e.g., outside of a grid
+or the effective temperature $\teff$ is too high or low to be reliable). 
+
+
+Based on our examination of technical flag usage between nodes, we assigned every node 
+result with a boolean flag indicating whether the supplied node results ($\teff$, $\logg$,
+$\feh$) should be used in the homogenisation process.\footnote{This flag is only present
+in an internal PostgreSQL database, which also includes the propagated flag explaining
+why a record should not be used in the homogenisation process, and which record the flag
+originated from.}  We did not use any results that were marked with any of the technical
+flags listed in Table \ref{tab:wg11-node-specific-flags-failing-qc}.  We further discarded 
+results flagged as having $v\sin{i} > 20$~km~s$^{-1}$ (flags 11020 and 11050) unless the 
+reporting node was OACT, as our examination (over multiple data releases) revealed that 
+the OACT node can properly account for fast rotating stars, whereas some nodes may not 
+even detect the presence of significant rotation. 
+
+
+We discarded results from IACAIP that were flagged to be an incomplete spectrum or 
+missing wavelengths (flag 10105), as IACAIP seemingly used this flag extensively to 
+indicate \emph{any} problem with their own analysis.  For all other nodes that report
+flag 10105, we propagated this flag to all results derived from the same spectrum,
+and discarded those node estimates.  However, if \emph{any} node reported one of the
+data reduction issues in Table \ref{tab:wg11-spectrum-specific-flags-failing-qc}
+(e.g., saturated or broken spectrum, poor sky subtraction) then we propagated this 
+flag to other results derived from the same spectrum, and discarded those results.
+For stars with multiple observations, we were also able to identify situations where 
+all nodes reported significantly different stellar parameters, all in the same 
+systematic direction (e.g., $\teff$ values reported by all nodes were $\sim$300~K for 
+one spectrum). In all cases, these systematic differences arose from archival spectra. 
+A visual inspection of these spectra revealed substantial data reduction issues, and 
+therefore we discarded all results derived from these problematic spectra.  Finally, 
+we discarded \emph{all} node results for a star (matched by \texttt{CNAME}) if any of 
+the spectra were flagged -- by any node -- as being a suspected multiple stellar system 
+(10320, 13027, or 20020). The total fraction of WG11 records that were discarded due to
+flags, including propagated flags, is 23.7\% (11,553 of 48,720), however only 580 unique 
+stars analysed by WG11 had all results discarded due to flag usage (of 4,941; 11.7\%).
+
+
+%FIGURE: wg11-flag-heatmap: Show 2D matrix heatmap of flag usage by WG11 nodes
+
+%TABLE IN APPENDIX \label{app:flags}: <no-name>: List of all relevant flags and their meaning.
+
+%TABLE IN APPENDIX \label{app:flags}: wg11-node-specific-flags-failing-qc: List of node-specific flags that caused us to discard results. Note in the caption the conditions for OACT & vsini, as well as IACAIP with missing wavelengths.
+
+%TABLE IN APPEDIX \label{app:flags}: wg11-spectrum-specific-flags-failing-qc: List of spectrum-specific flags that caused us to discard results. Note in the caption that we did something unusual for IACAIP.
+ 
+
 
 % Stellar parameter homogenisation
 \subsection{Stellar parameter homogenisation}
 \label{sec:stellar-parameter-homogenisation}
 
-
-Flag propagation.
 
 \noindent{}We make the following assumptions when constructing a model for homogenisation:
 
@@ -191,13 +268,7 @@ $6N_{nodes}$ summarises parameters that model biases, as well as systematic
 and random uncertainties. The final term $\frac{N_{nodes}!}{2(N_{nodes} - 2)!}$
 is the number of correlation coefficients between all nodes.\footnote{
 This inference problem is numerically unstable, as there are many model parameters
-which are used toi
-
-
- construct a covariance matrix that is sampled
-
-
-In practice
+AND TODO
 we include the Cholesky decomposition $L$ of the $N \times N$ correlation matrix $\rho$
 as model parameters instead of directly modeling the $\rho$ terms.  The correlation
 matrix can be reconstructed by $\rho = (IL)\cdot(IL)^T$ where $I$ is the $N \times N$
