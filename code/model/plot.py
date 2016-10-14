@@ -310,7 +310,7 @@ def node_uncertainty_with_snr(model, quartiles=[16, 50, 84], show_cr_bound=True,
 
     ax.set_ylim(ylims)
     
-    legend_kwds = dict(loc="upper center", ncol=2, frameon=False)
+    legend_kwds = dict(fontsize=10, loc="upper center", ncol=2, frameon=False)
     legend_kwds.update(kwargs.get("legend_kwds", {}))
     plt.legend(**legend_kwds)
     

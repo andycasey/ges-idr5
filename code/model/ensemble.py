@@ -122,7 +122,7 @@ def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
         ["feh", (-3, 0.5)],
     ])
     xs = np.clip(
-        [(np.nanmedian(estimates[p]) - l)/(u - l) for p, (l, u) in bounds.items()],
+        [1.0 - (np.nanmedian(estimates[p]) - l)/(u - l) for p, (l, u) in bounds.items()],
         0, 1)
 
     for ii, i in enumerate(indices):
@@ -149,9 +149,21 @@ def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
 
             spectrum_snr = np.clip(estimates["snr"][s:e], 1, 500)
             
-            var_node_sys[j] = samples["vs_c"][i, j] * np.exp(np.sum([
-                samples["vs_a"][i, l, k] * pow(1 - xs[l], samples["vs_b"][i, l, k]) \
-                    for l in range(len(xs))]))
+            
+            #var_node_sys[j] = samples["vs_c"][i, j] * np.exp(np.sum([
+            #    samples["vs_a"][i, l, k] * pow(1 - xs[l], samples["vs_b"][i, l, k]) \
+            #        for l in range(len(xs))]))
+            var_node_sys[j] = samples["vs_c"][i, k] * (4.0 
+                + samples["vs_ta{}".format(k + 1)][i] * xs[0]**2
+                + samples["vs_la{}".format(k + 1)][i] * xs[1]**2
+                + samples["vs_fa{}".format(k + 1)][i] * xs[2]**2
+                + samples["vs_tb{}".format(k + 1)][i] * xs[0]
+                + samples["vs_lb{}".format(k + 1)][i] * xs[1]
+                + samples["vs_fb{}".format(k + 1)][i] * xs[2]
+                + samples["vs_tc7"][i, k] * xs[0] * xs[1]
+                + samples["vs_tc8"][i, k] * xs[0] * xs[2]
+                + samples["vs_tc9"][i, k] * xs[1] * xs[2]
+            )
 
 
             diag_variance = (samples["alpha_sq"][i, k]/spectrum_snr) \
@@ -228,30 +240,30 @@ def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
 
         record = database.retrieve(
             """ SELECT id
-                  FROM wg_recommended_results
+                  FROM wg_recommended_results_poly_sys
                  WHERE wg = %s
                    AND cname = %s
             """, (wg, cname, ))
 
         if record:
             database.update(
-                """ UPDATE wg_recommended_results
+                """ UPDATE wg_recommended_results_poly_sys
                        SET {}
                      WHERE id = '{}'""".format(
                         ", ".join([" = ".join([k, "%s"]) for k in data.keys()]),
                         record[0][0]),
                 data.values())
             logger.info(
-                "Updated record {} in wg_recommended_results".format(record[0][0]))
+                "Updated record {} in wg_recommended_results_poly_sys".format(record[0][0]))
 
         else:
             new_record = database.retrieve(
-                """ INSERT INTO wg_recommended_results ({})
+                """ INSERT INTO wg_recommended_results_poly_sys ({})
                     VALUES ({}) RETURNING id""".format(
                         ", ".join(data.keys()), ", ".join(["%s"] * len(data))),
                 data.values())
             logger.info(
-                "Created new record {} in wg_recommended_results ({} / {})"\
+                "Created new record {} in wg_recommended_results_poly_sys ({} / {})"\
                 .format(new_record[0][0], wg, cname))
 
     return (central, pos_error, neg_error, stat_error)
@@ -349,6 +361,7 @@ class MedianModel(object):
                     .format(new_record[0][0], self._wg, cname))
 
         return result
+
 
 
     def homogenise_all_stars(self, update_database=False, **kwargs):
@@ -577,6 +590,38 @@ class BaseEnsembleModel(object):
             self._database, self._wg, self._parameter, cname,
             stan_model=self, **kwargs)
 
+
+    def homogenise_benchmark_stars(self, update_database=False, **kwargs):
+        """
+        Homogenise the stellar astrophysical parameter for all stars in the
+        database that are analysed by the current working group.
+
+        """
+
+        # Get all unique cnames of the benchmarks.
+        records = self._database.retrieve_table(
+            """ WITH n AS (
+                    SELECT id FROM nodes WHERE wg = '{}')
+                SELECT DISTINCT ON (r.cname) r.cname
+                FROM   n, spectra as s, results AS r
+            WHERE r.node_id = n.id
+              AND s.ges_type like 'GE_SD_B%'
+              AND s.cname = r.cname
+            ORDER BY cname DESC""".format(self._wg))
+        assert records is not None
+
+        N = len(records)
+        for i, cname in enumerate(records["cname"]):
+
+            _homogenise_survey_measurements(self._database, self._wg,
+                self._parameter, cname, stan_model=self, 
+                update_database=update_database, **kwargs)
+
+        if update_database:
+            self._database.connection.commit()
+
+        return None
+        
 
     def homogenise_all_stars(self, **kwargs):
         """

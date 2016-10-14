@@ -47,9 +47,11 @@ def node_benchmark_performance(database, wg, node_name, sort_by="TEFF",
     benchmarks = benchmarks[ok]
 
 
-    fig, axes = plt.subplots(3, figsize=(16.5, 7.5))
     parameters = ("teff", "logg", "mh")
     fits_parameters = ("TEFF", "LOGG", "FEH")
+    
+    fig, axes = plt.subplots(3, figsize=(16.5, 7.5))
+    
     ylabels = {
         "teff": r"$\Delta{}T_{\rm eff}$ $({\rm K})$",
         "logg": r"$\Delta\log{g}$",
@@ -205,7 +207,8 @@ def wg_benchmark_performance(database, wg, truths, show_recommended=False,
     ylims = ylims or {}
 
     parameters = kwargs.get("parameters", ("TEFF", "LOGG", "FEH"))
-    fig, axes = plt.subplots(len(parameters), figsize=(16.5, 7.5))
+    fig, axes = plt.subplots(
+        len(parameters), figsize=kwargs.get("figsize", (12, 2.5 * len(parameters))))
     
     default_ylabels = {
         "TEFF": r"$\Delta{}T_{\rm eff}$ $({\rm K})$",
@@ -234,7 +237,9 @@ def wg_benchmark_performance(database, wg, truths, show_recommended=False,
             kwds = dict(
                 parameter=parameter, wg=wg, ges_fld=benchmark["GES_FLD"].strip(),
                 node_sql_constraint_str=" AND {}".format(node_sql_constraint) \
-                    if node_sql_constraint is not None else "")
+                    if node_sql_constraint is not None else "",
+                recommended_table=kwargs.get(
+                    "recommended_table", "wg_recommended_results"))
 
             node_estimates = database.retrieve_table(
                 """ SELECT DISTINCT ON (results.id)
@@ -263,7 +268,7 @@ def wg_benchmark_performance(database, wg, truths, show_recommended=False,
                 wg_recommended = database.retrieve_table(
                     """ SELECT  {parameter}, e_{parameter}, 
                                 e_pos_{parameter}, e_neg_{parameter}
-                          FROM  wg_recommended_results as wgr, spectra
+                          FROM  {recommended_table} as wgr, spectra
                          WHERE  wgr.wg = {wg}
                            AND  wgr.cname = spectra.cname
                            AND  TRIM(spectra.ges_fld) = '{ges_fld}';
@@ -287,6 +292,7 @@ def wg_benchmark_performance(database, wg, truths, show_recommended=False,
             diffs[parameter] = np.array(diffs[parameter])[keep]
             recommended_diffs[parameter] = np.array(recommended_diffs[parameter])[keep]
 
+    axes = np.array([axes]).flatten()
 
     for i, (ax, parameter) in enumerate(zip(axes, parameters)):
 
