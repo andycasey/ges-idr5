@@ -57,8 +57,12 @@ for wg in wgs:
     for parameter, scale in parameter_scales.items():
 
         model_path = model_paths.format(wg=wg, parameter=parameter)
+        model_path = "homogenisation-wg{wg}-{parameter}-poly-sys.model".format(
+            wg=wg, parameter=parameter)
+
         if os.path.exists(model_path): 
             model = EnsembleModel.read(model_path, database)
+            continue
 
         else:
             model = EnsembleModel(database, wg, parameter, benchmarks)
@@ -91,20 +95,18 @@ for wg in wgs:
             init["vs_tc9"] = 1 * np.ones(data["N"])
 
 
-            print("Number of model parameters: {}".format(
+            print("Number of model parameters for {}: {}".format(parameter,
                 sum([np.array(v).size for v in init.values()])))
 
             op_params = model.optimize(data, init=init, iter=100000)
-
-            raise a
 
             fit = model.sample(data, init=op_params, **sample_kwds)
 
             model.write(model_path, 
                 overwrite=True, __ignore_model_pars=("Sigma", "full_rank_estimates"))
 
-
-        model.homogenise_all_stars(update_database=True)
+        #raise a
+        #model.homogenise_all_stars(update_database=True)
 
 
 # TODO:

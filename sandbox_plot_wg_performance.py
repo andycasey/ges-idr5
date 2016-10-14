@@ -25,6 +25,22 @@ debug = True
 
 for wg in (11, ):
 
+    raise a
+    
+    # Plot benchmarks first.
+    fig = plot.wg_benchmark_performance(database, wg, benchmarks, 
+        show_recommended=True, ylims=dict(TEFF=1000, LOGG=1, FEH=1))
+    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks-zoom.pdf".format(wg=wg), **savefig_kwds)
+    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks-zoom.png".format(wg=wg), **savefig_kwds)
+
+
+    fig = plot.wg_benchmark_performance(
+        database, wg, benchmarks, show_recommended=True)
+    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks.pdf".format(wg=wg), **savefig_kwds)
+    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks.png".format(wg=wg), **savefig_kwds)
+
+    raise a
+
 
     # Plot clusters.
 
@@ -85,15 +101,3 @@ for wg in (11, ):
                 fig.savefig("{}.png".format(basename), **savefig_kwds)
 
     raise a
-
-    # Plot benchmarks first.
-    fig = plot.wg_benchmark_performance(database, wg, benchmarks, 
-        show_recommended=True, ylims=dict(TEFF=1000, LOGG=1, FEH=1))
-    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks-zoom.pdf".format(wg=wg), **savefig_kwds)
-    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks-zoom.png".format(wg=wg), **savefig_kwds)
-
-
-    fig = plot.wg_benchmark_performance(
-        database, wg, benchmarks, show_recommended=True)
-    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks.pdf".format(wg=wg), **savefig_kwds)
-    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks.png".format(wg=wg), **savefig_kwds)

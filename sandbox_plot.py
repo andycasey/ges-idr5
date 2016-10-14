@@ -4,15 +4,23 @@ from code.model import ensemble, plot
 
 
 
-raise a
-
-
 for wg in (11, ):
 
-    for parameter in ("teff", "logg", "feh"):
+    for parameter in ("logg", ):# ("teff", "logg", "feh"):
 
         model = ensemble.EnsembleModel.read(
-            "homogenisation-wg11-{}.model".format(parameter), None)
+            "good-exponential-models-master/homogenisation-wg11-{}.model".format(parameter), None)
+
+        # Plot the random uncertainty as a function of SNR
+        fig = plot.node_uncertainty_with_snr(model)
+        
+        raise a
+        fig.savefig("figures/wg{wg}/wg{wg}-node-uncertainty-random-{param}.pdf"\
+            .format(wg=wg, param=parameter))
+        fig.savefig("figures/wg{wg}/wg{wg}-node-uncertainty-random-{param}.png"\
+            .format(wg=wg, param=parameter))
+
+
 
         # Plot the distribution of biases for each node
         fig = plot.biases(model)
@@ -22,12 +30,7 @@ for wg in (11, ):
             wg=wg, param=parameter))
         
 
-        # Plot the random uncertainty as a function of SNR
-        fig = plot.node_uncertainty_with_snr(model)
-        fig.savefig("figures/wg{wg}/wg{wg}-node-uncertainty-random-{param}.pdf"\
-            .format(wg=wg, param=parameter))
-        fig.savefig("figures/wg{wg}/wg{wg}-node-uncertainty-random-{param}.png"\
-            .format(wg=wg, param=parameter))
+
 
         # Plot the relative systematic uncertainty as a function of parameters
         fig = plot.node_relative_systematic_uncertainty(model)
