@@ -18,8 +18,6 @@ with open(db_filename, "r") as fp:
 # Create a database object.
 database = GESDatabase(**credentials)
 
-
-"""
 # Ingest WG14 BIN results
 data = Table.read("node-results/WG14/iDR5_SB234.txt", names=("cname", "peculi"), format="ascii")
 node_id = database.retrieve_node_id(14, "BIN")
@@ -37,8 +35,6 @@ for i, row in enumerate(data):
             ", ".join(["%({})s".format(column) for column in row_data.keys()])),
         row_data)
 
-"""
-
 # Ingest WG14 Halpha results
 node_id = database.retrieve_node_id(14, "Halpha")
 for filename in glob("node-results/WG14/Halpha_data_for_template_*_by_CNAME.csv"):
@@ -46,20 +42,40 @@ for filename in glob("node-results/WG14/Halpha_data_for_template_*_by_CNAME.csv"
     data = Table.read(filename, format="csv")
     N = len(data)
 
-    for i, row in enumerate(data):
+    _DEFAULTS = {
+        "setup": "ALL",
+        "filename": "ALL",
+        "vel": np.nan,
+        "e_vel": np.nan,
+        "vrot": np.nan,
+        "e_vrot": np.nan
+    }
 
-        tech = "|".join(row["TECH"].strip().split("|"))
-        peculi = "|".join(row["PECULI"].strip().split("|"))
+    for i, row in enumerate(data):
+        
+        tech = "{}".format(row["TECH"]).strip()
+        peculi = "{}".format(row["PECULI"]).strip()
+        tech = tech if tech != "--" else ""
+        peculi = peculi if peculi != "--" else ""
+
+        tech = "|".join(list(set(tech.split("|"))))
+        peculi = "|".join(list(set(peculi.split("|"))))
 
         row_data = dict(node_id=node_id)
         row_data.update(
             cname=row["CNAME"],
+            setup=row["SETUP"],
             filename=row["FILENAME"],
             vel=row["VEL"],
             e_vel=row["E_VEL"],
             vrot=row["VROT"],
             e_vrot=row["E_VROT"],
             tech=tech, peculi=peculi)
+
+        # Check for masked data
+        for key in row_data.keys():
+            if isinstance(row_data[key], np.ma.core.MaskedArray):
+                row_data[key] = _DEFAULTS[key]
 
         logger.info("Inserting row {}/{}: {}".format(i, N, row_data))
 
