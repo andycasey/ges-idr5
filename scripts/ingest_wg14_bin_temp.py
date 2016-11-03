@@ -19,7 +19,7 @@ with open(db_filename, "r") as fp:
 database = GESDatabase(**credentials)
 
 
-
+"""
 # Ingest WG14 BIN results
 data = Table.read("node-results/WG14/iDR5_SB234.txt", names=("cname", "peculi"), format="ascii")
 node_id = database.retrieve_node_id(14, "BIN")
@@ -36,6 +36,38 @@ for i, row in enumerate(data):
             ", ".join(row_data.keys()),
             ", ".join(["%({})s".format(column) for column in row_data.keys()])),
         row_data)
+
+"""
+
+# Ingest WG14 Halpha results
+node_id = database.retrieve_node_id(14, "Halpha")
+for filename in glob("node-results/WG14/Halpha_data_for_template_*_by_CNAME.csv"):
+
+    data = Table.read(filename, format="csv")
+    N = len(data)
+
+    for i, row in enumerate(data):
+
+        tech = "|".join(row["TECH"].strip().split("|"))
+        peculi = "|".join(row["PECULI"].strip().split("|"))
+
+        row_data = dict(node_id=node_id)
+        row_data.update(
+            cname=row["CNAME"],
+            filename=row["FILENAME"],
+            vel=row["VEL"],
+            e_vel=row["E_VEL"],
+            vrot=row["VROT"],
+            e_vrot=row["E_VROT"],
+            tech=tech, peculi=peculi)
+
+        logger.info("Inserting row {}/{}: {}".format(i, N, row_data))
+
+        database.execute(
+            "INSERT INTO results ({}) VALUES ({})".format(
+                ", ".join(row_data.keys()),
+                ", ".join(["%({})s".format(column) for column in row_data.keys()])),
+            row_data)
 
 
 database.connection.commit()
