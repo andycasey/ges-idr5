@@ -239,30 +239,15 @@ ALTER TABLE wg_recommended_results ALTER COLUMN nn_spectra_mh SET DEFAULT 0;
 ALTER TABLE wg_recommended_results ALTER COLUMN nn_spectra_alpha_fe SET DEFAULT 0;
 
 
-ALTER TABLE wg_recommended_results ADD CONSTRAINT teff_provenance_required
-    CHECK (teff = 'NaN' OR provenance_ids_for_teff is not null);
-ALTER TABLE wg_recommended_results ADD CONSTRAINT logg_provenance_required
-    CHECK (logg = 'NaN' OR provenance_ids_for_logg is not null);
-ALTER TABLE wg_recommended_results ADD CONSTRAINT feh_provenance_required
-    CHECK (feh = 'NaN' OR provenance_ids_for_feh is not null);
-ALTER TABLE wg_recommended_results ADD CONSTRAINT mh_provenance_required
-    CHECK (mh = 'NaN' OR provenance_ids_for_mh is not null);
-ALTER TABLE wg_recommended_results ADD CONSTRAINT xi_provenance_required
-    CHECK (xi = 'NaN' OR provenance_ids_for_xi is not null);
-ALTER TABLE wg_recommended_results ADD CONSTRAINT alpha_fe_provenance_required
-    CHECK (alpha_fe = 'NaN' OR provenance_ids_for_alpha_fe is not null);    
+ALTER TABLE wg_recommended_results ADD COLUMN filename text;
+ALTER TABLE wg_recommended_results ADD COLUMN setup text;
 
-ALTER TABLE wg_recommended_results ADD CONSTRAINT valid_e_teff_required
-    CHECK ((e_teff > 0 AND e_teff is not null) OR teff = 'NaN');
-ALTER TABLE wg_recommended_results ADD CONSTRAINT valid_e_logg_required
-    CHECK ((e_logg > 0 AND e_logg is not null) OR logg = 'NaN');
-ALTER TABLE wg_recommended_results ADD CONSTRAINT valid_e_feh_required
-    CHECK ((e_feh > 0 AND e_feh is not null) OR feh = 'NaN');
-ALTER TABLE wg_recommended_results ADD CONSTRAINT valid_e_xi_required
-    CHECK ((e_xi > 0 AND e_xi is not null) OR xi = 'NaN');
-ALTER TABLE wg_recommended_results ADD CONSTRAINT valid_e_mh_required
-    CHECK ((e_mh > 0 AND e_mh is not null) OR mh = 'NaN');
-
+ALTER TABLE wg_recommended_results ADD COLUMN nn_teff integer default 0;
+ALTER TABLE wg_recommended_results ADD COLUMN nn_logg integer default 0;
+ALTER TABLE wg_recommended_results ADD COLUMN nn_feh integer default 0;
+ALTER TABLE wg_recommended_results ADD COLUMN nn_mh integer default 0;
+ALTER TABLE wg_recommended_results ADD COLUMN nn_xi integer default 0;
+ALTER TABLE wg_recommended_results ADD COLUMN nn_alpha_fe integer default 0;
 
 ALTER TABLE wg_recommended_results ADD COLUMN lim_vsini integer;
 ALTER TABLE wg_recommended_results ADD COLUMN teff_phot numeric;
@@ -306,4 +291,4 @@ ALTER TABLE wg_recommended_results ADD COLUMN m_alpha numeric;
 ALTER TABLE wg_recommended_results ADD COLUMN m_grid char(1);
 ALTER TABLE wg_recommended_results ADD COLUMN m_broad numeric;
 ALTER TABLE wg_recommended_results ADD COLUMN m_loops integer;
-ALTER TABLE wg_recommended_results ADD COLUMN m_name  char(1);
+ALTER TABLE wg_recommended_results ADD COLUMN m_name char(1);
