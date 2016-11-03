@@ -262,3 +262,48 @@ ALTER TABLE wg_recommended_results ADD CONSTRAINT valid_e_xi_required
     CHECK ((e_xi > 0 AND e_xi is not null) OR xi = 'NaN');
 ALTER TABLE wg_recommended_results ADD CONSTRAINT valid_e_mh_required
     CHECK ((e_mh > 0 AND e_mh is not null) OR mh = 'NaN');
+
+
+ALTER TABLE wg_recommended_results ADD COLUMN lim_vsini integer;
+ALTER TABLE wg_recommended_results ADD COLUMN teff_phot numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN e_teff_phot numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN teff_irfm numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN e_teff_irfm numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN fbol_irfm numeric;
+
+ALTER TABLE wg_recommended_results ADD COLUMN spt char(8);
+ALTER TABLE wg_recommended_results ADD COLUMN veil numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN e_veil numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN ew_li numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN lim_ew_li integer;
+ALTER TABLE wg_recommended_results ADD COLUMN e_ew_li numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN ewc_li numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN lim_ewc_li integer;
+ALTER TABLE wg_recommended_results ADD COLUMN e_ewc_li numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN ew_ha_acc numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN e_ew_ha_acc numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN ha10 numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN e_ha10 numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN ew_ha_chr numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN e_ew_ha_chr numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN fha_chr numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN e_fha_chr numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN fwzi numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN e_fwzi numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN ew_hb_chr numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN e_ew_hb_chr numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN fhb_chr numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN e_fhb_chr numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN log_mdot_acc numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN e_log_mdot_acc numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN log_l_acc numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN e_log_l_acc numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN gamma numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN e_gamma numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN convol numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN e_convol numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN m_alpha numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN m_grid char(1);
+ALTER TABLE wg_recommended_results ADD COLUMN m_broad numeric;
+ALTER TABLE wg_recommended_results ADD COLUMN m_loops integer;
+ALTER TABLE wg_recommended_results ADD COLUMN m_name  char(1);

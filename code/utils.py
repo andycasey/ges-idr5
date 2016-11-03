@@ -2,6 +2,7 @@
 """ General utility functions. """
 
 import os
+from astropy.io import fits
 from numpy import isfinite
 
 
@@ -24,6 +25,30 @@ def parse_node_filename(filename):
         node_name = node_name[:-5]
     wg = wg_as_int(wg)
     return (wg, node_name)
+
+
+def parse_wg_from_file(filename):
+    """
+    Parse the working group from a filename containing working group-level
+    recommended files, and check the header to make sure that things are 
+    consistent.
+
+    :param filename:
+        The local path of the file to check.        
+    """
+
+    basename = os.path.basename(filename)
+    path_wg = basename.split("_")[2]
+
+    # Check the WG entry in the image header.
+    image = fits.open(filename)
+    header_wg = image[0].header["NODE1"]
+
+    if path_wg != header_wg:
+        raise ValueError("implicit WG from path is different from the explicit"\
+            " WG in the image header ({} != {})".format(path_wg, header_wg))
+
+    return path_wg
 
 
 
