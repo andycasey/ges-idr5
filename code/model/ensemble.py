@@ -240,30 +240,30 @@ def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
 
         record = database.retrieve(
             """ SELECT id
-                  FROM wg_recommended_results_poly_sys
+                  FROM wg_recommended_results
                  WHERE wg = %s
                    AND cname = %s
             """, (wg, cname, ))
 
         if record:
             database.update(
-                """ UPDATE wg_recommended_results_poly_sys
+                """ UPDATE wg_recommended_results
                        SET {}
                      WHERE id = '{}'""".format(
                         ", ".join([" = ".join([k, "%s"]) for k in data.keys()]),
                         record[0][0]),
                 data.values())
             logger.info(
-                "Updated record {} in wg_recommended_results_poly_sys".format(record[0][0]))
+                "Updated record {} in wg_recommended_results".format(record[0][0]))
 
         else:
             new_record = database.retrieve(
-                """ INSERT INTO wg_recommended_results_poly_sys ({})
+                """ INSERT INTO wg_recommended_results ({})
                     VALUES ({}) RETURNING id""".format(
                         ", ".join(data.keys()), ", ".join(["%s"] * len(data))),
                 data.values())
             logger.info(
-                "Created new record {} in wg_recommended_results_poly_sys ({} / {})"\
+                "Created new record {} in wg_recommended_results ({} / {})"\
                 .format(new_record[0][0], wg, cname))
 
     return (central, pos_error, neg_error, stat_error)

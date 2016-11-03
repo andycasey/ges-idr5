@@ -65,7 +65,6 @@ _FITS_FORMAT_ADAPTERS = {
     "e_teff_irfm": float,
     "fbol_irfm": float,
 
-    "spt": str,
     "veil": float,
     "e_veil": float,
     "ew_li":  float,
@@ -97,10 +96,8 @@ _FITS_FORMAT_ADAPTERS = {
     "convol": float,
     "e_convol": float,
     "m_alpha": float,
-    "m_grid": str,
     "m_broad": float,
     "m_loops": float,
-    "m_name": str
     }
 
 
@@ -399,9 +396,9 @@ class GESDatabase(Database):
         # Start ingesting results.
         data = Table.read(filename, hdu=extension)
 
-        default_row = {"node_id": node_id}
-        columns = (
-            "node_id", "cname", "filename", "setup", "snr",
+        default_row = { "wg": wg }
+        columns = ("wg", # For default row
+            "cname", "filename", "setup", "snr",
             "vel", "e_vel", "vrot", "e_vrot",     
             "teff", "e_teff", "nn_teff", "enn_teff", "nne_teff", "sys_err_teff",
             "logg", "e_logg", "nn_logg", "enn_logg", "nne_logg", "sys_err_logg", "lim_logg",
@@ -466,13 +463,18 @@ class GESDatabase(Database):
 
         N = len(data)
         for i, row in enumerate(data):
-            logger.info("Ingesting row {}/{} from WG{}: {}".format(i, N, wg))
+            logger.info("Ingesting row {}/{} from WG{}".format(i, N, wg))
             row_data = {}
             row_data.update(default_row)
             row_data.update(dict(zip(columns[1:], [row[c.upper()] for c in columns[1:]])))
 
+            # Trim strings!
+            for k in row_data.keys():
+                if isinstance(row_data[k], str):
+                    row_data[k] = row_data[k].strip()
+
             self.execute(
-                "INSERT INTO results ({}) VALUES ({})".format(
+                "INSERT INTO wg_recommended_results ({}) VALUES ({})".format(
                     ", ".join(columns),
                     ", ".join(["%({})s".format(column) for column in columns])),
                 row_data)

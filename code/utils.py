@@ -1,10 +1,12 @@
 
 """ General utility functions. """
 
+import logging
 import os
 from astropy.io import fits
 from numpy import isfinite
 
+logger = logging.getLogger("ges")
 
 def safe_int(x, fill_value=-1):
     try:
@@ -42,13 +44,18 @@ def parse_wg_from_file(filename):
 
     # Check the WG entry in the image header.
     image = fits.open(filename)
-    header_wg = image[0].header["NODE1"]
+    try:
+        header_wg = image[0].header["NODE1"]
 
-    if path_wg != header_wg:
-        raise ValueError("implicit WG from path is different from the explicit"\
-            " WG in the image header ({} != {})".format(path_wg, header_wg))
+    except:
+        logger.warn("Could not find NODE1 header in {}".format(filename))
 
-    return path_wg
+    else:
+        if path_wg != header_wg:
+            raise ValueError("implicit WG from path is different from the explicit"\
+                " WG in the image header ({} != {})".format(path_wg, header_wg))
+    wg = int("{}".format(path_wg).lower().lstrip("wg"))
+    return wg 
 
 
 
