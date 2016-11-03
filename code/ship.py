@@ -138,11 +138,18 @@ def wg_recommended_sp_template(database, input_path, output_path, wg,
                    AND cname = '{cname}'
             """.format(wg=wg, cname=cname, columns=", ".join(columns)))
 
-        assert record is not None
-        assert len(record) == 1
-
-        for column in columns:
-            updated_data[column].append(record[column][0])
+        if record is None:
+            # Keep whatever is currently there in the template.
+            for column in columns:
+                if default_translator(column) in image[ext].data.dtype.names:
+                    updated_data[column].append(image[ext].data[default_translator(column)][i])
+                else:
+                    updated_data[column].append(np.nan)
+        
+        else:
+            assert len(record) == 1
+            for column in columns:
+                updated_data[column].append(record[column][0])
 
     J = len(columns)
     for j, column in enumerate(columns):
@@ -160,14 +167,23 @@ def wg_recommended_sp_template(database, input_path, output_path, wg,
                 "Column '{}' (from {}) not in template. Skipping..".format(
                     fits_column, column))
             continue
-        
+       
+        # Check for non-finite values and integer requirements.
+        types = list(set(map(type, updated_data[column])))
+        if len(types) == 2 \
+        and any([isinstance(v, int) for v in updated_data[column]]) \
+        and not np.all(np.isfinite(updated_data[column])):
+            updated_data[column] = np.array(updated_data[column])
+            bad = ~np.isfinite(updated_data[column])
+            updated_data[column][bad] = 0
+            updated_data[column] = updated_data[column].astype(int)
+    
         try:
             image[ext].data[fits_column] = updated_data[column]
         
         except:
             logger.exception(
                 "Could not update column '{}':".format(fits_column))
-            continue
 
     # Update the release date.
     now = datetime.now()
