@@ -27,8 +27,8 @@ propagate_flags_by_spectrum:
     #  10200 # No rotational velocity (v*sin(i)) determination
     #  10210 # Revised rotational velocity (v*sin(i); use `VSINI' column to specify the new determination)
   10105: # Incomplete spectrum (missing wavelengths)
-    # Only if not IACAIP (node_id = 8):
-    constraint: "node_id != 8"
+    # Only if not IACAIP (node_id = 8) and not Nice (node_id = 10)
+    constraint: "node_id != 8 AND node_id != 10"
 
 
 # Anything matching these flags will cause us to mark that particular node 
@@ -72,8 +72,8 @@ node_specific_flags:
     # Only if it is not OACT, because we know they can deal with high vsini
     constraint: "node_id != 11 AND node_id != 21 AND node_id != 34"
   10105: # Incomplete spectrum (missing wavelengths)
-    # IACAIP use this for any problem with the spectra
-    constraint: "node_id = 8"
+    # Only if not IACAIP (node_id = 8) and not Nice (node_id = 10)
+    constraint: "node_id != 8 AND node_id != 10"
 
 
 # Anything matching these flags will cause us to mark all results from that

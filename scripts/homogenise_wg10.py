@@ -1,6 +1,6 @@
 
 """
-Homogenisation models.
+Homogenise the results from WG10.
 """
 
 import yaml
@@ -17,11 +17,36 @@ from code.model.ensemble import EnsembleModel, MedianModel
 # Initialize logging.
 logger = logging.getLogger("ges")
 
+CHECK_FOR_NODE_SETUPS = False
+
 # Create a database object.
 db_filename = "db.yaml"
 with open(db_filename, "r") as fp:
     credentials = yaml.load(fp)
 database = GESDatabase(**credentials)
+
+# Give new node names to all WG10 nodes on a per-setup basis?
+if CHECK_FOR_NODE_SETUPS:
+
+    distinct_nodes = database.retrieve_table(
+        """select distinct on (name, node_id, setup) name, node_id, setup from results, nodes where results.node_id = nodes.id and nodes.wg = 10 and results.teff <> 'NaN'""")
+
+    if not np.all(["-" in name for name in distinct_nodes["name"]]):
+        logger.info("Creating new nodes!")
+
+        for distinct_node in distinct_nodes:
+            new_node_name = "{}-{}".format(distinct_node["name"].strip(), distinct_node["setup"].strip())
+            new_node_id = database.create_or_retrieve_node_id(10, new_node_name)
+
+            # Update all the results.
+            logger.info("Updating to {}/{}".format(new_node_id, new_node_name))
+            N = database.update(
+                "UPDATE results SET node_id = '{}' WHERE node_id = '{}';".format(
+                    new_node_id, distinct_node["node_id"]))
+            
+            print(N)
+
+        database.connection.commit()
 
 # Load the "benchmarks"
 # Only use "benchmarks" with TEFF < 8000 K
@@ -31,25 +56,23 @@ benchmarks["E_FEH"] = 0.10
 
 model_paths = "homogenisation-wg{wg}-{parameter}.model"
 
-wgs = (11, )
+
+wgs = (10, )
+# wg10 = HR10 +/- HR21
+# wg20 = EPINARBO HR15N
+
 parameter_scales = OrderedDict([
-    ("teff", 250),
-    ("logg", 0.25),
-    ("feh", 0.25)
+    #("teff", 250),
+    #("logg", 0.25),
+    ("feh", 0.25),
+
 ])
 
-sample_kwds = dict(chains=2, iter=2000)
+sample_kwds = dict(chains=2, iter=15000)
 
 finite = np.isfinite(benchmarks["TEFF"] * benchmarks["LOGG"] * benchmarks["FEH"])
 benchmarks = benchmarks[finite]
 
-"""
-model = MedianModel(database, 11, "xi")
-model.homogenise_all_stars(update_database=True, default_sigma=0.5)
-
-model = MedianModel(database, 11, "alpha_fe")
-model.homogenise_all_stars(update_database=True, default_sigma=0.10)
-"""
 
 models = {}
 for wg in wgs:
@@ -62,12 +85,11 @@ for wg in wgs:
 
         if os.path.exists(model_path): 
             model = EnsembleModel.read(model_path, database)
-            
 
         else:
             model = EnsembleModel(database, wg, parameter, benchmarks)
             data, metadata = model._prepare_data(
-                default_sigma_calibrator=scale)
+                default_sigma_calibrator=scale, minimum_node_estimates=3)
 
             init = {
                 "truths": data["mu_calibrator"],
@@ -101,19 +123,22 @@ for wg in wgs:
             op_params = model.optimize(data, init=init, iter=100000)
 
             fit = model.sample(data, init=op_params, **sample_kwds)
+            #print("Printing fit")
+            #print(fit)
+            fig = fit.plot(pars=("biases", ))
+            fig.savefig("homogenisation-wg{}-{}.png".format(wg, parameter))
 
             model.write(model_path, 
                 overwrite=True, __ignore_model_pars=("Sigma", "full_rank_estimates"))
 
-        #model.homogenise_all_stars(update_database=True)
-        #model.homogenise_stars_matching_query(
-        #    """SELECT distinct on (r.cname) r.cname FROM results as r, spectra as s, nodes as n where n.id = r.node_id and s.cname = r.cname and (
-        #        s.ges_type like '%_OC%' or s.ges_type like '%_GC%' or s.ges_type like '%_CL%') and n.wg = 11""")
-        model.homogenise_stars_matching_query(
-            """SELECT distinct on (r.cname) r.cname FROM results as r, spectra as s, nodes as n where n.wg = 11 and s.cname = r.cname and s.ges_fld like 'Rup134%'""")
-        
+        #models[wg][parameter] = model
+
+        #model.homogenise_benchmark_stars(update_database=True)
+        model.homogenise_all_stars(update_database=True, autocommit=True)
 
 
+
+# TODO:
 # - VROT
 # - VEL
 # - FLAGS

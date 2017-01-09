@@ -96,10 +96,6 @@ def wg_recommended_sp_template(database, input_path, output_path, wg,
         "nn_spectra_alpha_fe",
         "enn_alpha_fe",
         "nne_alpha_fe",
-
-        "tech",
-        "remark",
-        "peculi"
     ]
 
     translations = {
@@ -154,6 +150,7 @@ def wg_recommended_sp_template(database, input_path, output_path, wg,
     J = len(columns)
     for j, column in enumerate(columns):
 
+
         # Translate the column.
         fits_column = translations.get(column, None)
         if fits_column is None:
@@ -185,12 +182,122 @@ def wg_recommended_sp_template(database, input_path, output_path, wg,
             logger.exception(
                 "Could not update column '{}':".format(fits_column))
 
+    # It's stupid that we should ever have to do this.
+    propagate_columns = {
+        "NN_TEFF": ("ENN_TEFF", "NNE_TEFF"),
+        "NN_LOGG": ("ENN_LOGG", "NNE_LOGG"),
+        "NN_FEH": ("ENN_FEH", "NNE_FEH"),
+    }
+    for column, propagate_to_columns in propagate_columns.items():
+        for propagated_column in propagate_to_columns:
+            image[ext].data[propagated_column] = image[ext].data[column]
+
+    # If this is WG 11, then we will do the TECH flags.
+    if wg == 11:
+        logger.info("Doing TECH flags separately")
+        max_length = -1
+        concatenated_tech = []
+        for i, cname in enumerate(image[ext].data["CNAME"]):
+
+            logger.info("At row {}/{}: {}".format(i + 1, N, cname))
+
+            if np.isfinite(updated_data["teff"][i]):
+                record = database.retrieve_table(
+                    """ SELECT w.id, string_agg(DISTINCT r.tech, '|') AS tech
+                        FROM wg_recommended_results AS w,
+                             results as r
+                        WHERE w.wg = %s
+                          AND r.id = ANY(
+                                  w.provenance_ids_for_teff ||
+                                  w.provenance_ids_for_logg ||
+                                  w.provenance_ids_for_feh)
+                          AND r.tech <> 'NaN'
+                          AND r.tech <> ''
+                          AND w.cname = %s
+                        GROUP BY w.id;
+                    """, (wg, cname))
+
+            else:
+                record = database.retrieve_table(
+                    """ SELECT string_agg(DISTINCT r.tech, '|') AS tech
+                        FROM results as r,
+                             nodes as n
+                        WHERE r.node_id = n.id
+                          AND n.wg = %s
+                          AND r.cname = %s
+                          AND r.tech <> 'NaN'
+                          AND r.tech <> '';
+                    """, (wg, cname))
+
+            if record is None:
+                concatenated_tech.append("")
+
+            else:
+                tech = "|".join(sorted(map(str.strip, list(set(record["tech"][0].split("|"))))))
+                concatenated_tech.append(tech)
+
+                max_length = max([max_length, len(tech)])
+
+            print("TECH", i, cname, concatenated_tech[-1])
+
+        # Fuck this shit.
+        if not "FixedLength" in input_path:
+            cols = fits.ColDefs(
+                [col for col in image[ext].columns[:-1]] \
+                    + [fits.Column(name="TECH", format="A{}".format(max_length),
+                                   array=concatenated_tech)])
+            image[ext] = fits.BinTableHDU.from_columns(cols)
+
+        else:
+            if max_length > 250:
+                logger.warn("Some TECH flags are going to be truncated!")
+            image[ext].data["TECH"] = concatenated_tech
+
+
     # Update the release date.
     now = datetime.now()
+    image[1].header["EXTNAME"] = "WGParametersWGAbundances"
     image[0].header["DATETAB"] = "{year}-{month}-{day}".format(
         year=now.year, month=now.month, day=now.day)
-    image.writeto(output_path, clobber=overwrite)
 
+    # Create a temporary HDU
+    hdu = fits.BinTableHDU()
+    hdu.header.update({
+        "RELEASE": image[0].header["RELEASE"],
+        "DATETAB": image[0].header["DATETAB"],
+        "INSTRUME": image[0].header["INSTRUME"],
+        "NODE1": "WG{}".format(wg),
+        "EXTNAME": "WGParametersWGAbundancesAdd",
+        "EXTDUMMY": True,
+        "COMMENT": "GES WG Recommended Parameters and Abundances"
+    })
+    if "SIMPLE" in hdu.header:
+        del hdu.header["SIMPLE"]
+    hdu.verify("fix")
+
+    for column_name in ("ENN_TEFF", "ENN_LOGG", "ENN_FEH"):
+        image[1].data[column_name] = image[1].data[column_name.replace("ENN_", "E_")]
+        
+    for column_name in ("NN_TEFF", "NN_LOGG", "NN_FEH", "NNE_TEFF", "NNE_LOGG", "NNE_FEH"):
+        no_results = image[1].data[column_name] == 0
+        image[1].data[column_name][no_results] = -1
+
+    # Update with other nodes that contributed.
+    contributed_nodes = database.retrieve_table(
+        """ SELECT DISTINCT ON (n.name) n.name
+            FROM nodes as n
+            WHERE n.wg = %s 
+              AND EXISTS(SELECT 1 FROM results AS r
+                         WHERE r.node_id = n.id 
+                           AND r.passed_quality_control)
+            ORDER BY n.name ASC""", (wg, ))
+
+    for i, node_name in enumerate(contributed_nodes["name"]):
+        image[0].header["NODE{:.0f}".format(i + 2)] = node_name
+
+    image.append(hdu)
+    image.writeto(output_path, clobber=overwrite)
+    
     logger.info("Written WG{}-recommended file to {}".format(wg, output_path))
 
     return None

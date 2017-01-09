@@ -54,7 +54,7 @@ ALTER TABLE recommended_idr4 ADD COLUMN id BIGSERIAL PRIMARY KEY;
 DROP TABLE IF EXISTS nodes;
 CREATE TABLE nodes (
     wg integer not null,
-    name char(10) not null
+    name char(30) not null
 );
 ALTER TABLE nodes ADD COLUMN id BIGSERIAL PRIMARY KEY;
 
@@ -292,3 +292,5 @@ ALTER TABLE wg_recommended_results ADD COLUMN m_grid char(1);
 ALTER TABLE wg_recommended_results ADD COLUMN m_broad numeric;
 ALTER TABLE wg_recommended_results ADD COLUMN m_loops integer;
 ALTER TABLE wg_recommended_results ADD COLUMN m_name char(1);
+
+ALTER TABLE spectra ADD COLUMN is_blind_test boolean default false;

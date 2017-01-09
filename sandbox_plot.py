@@ -4,17 +4,16 @@ from code.model import ensemble, plot
 
 
 
-for wg in (11, ):
+for wg in (10, ):
 
-    for parameter in ("logg", ):# ("teff", "logg", "feh"):
+    for parameter in ("teff", "logg", "feh"):
 
         model = ensemble.EnsembleModel.read(
-            "good-exponential-models-master/homogenisation-wg11-{}.model".format(parameter), None)
+            "homogenisation-wg{}-{}-poly-sys.model".format(wg,parameter), None)
 
         # Plot the random uncertainty as a function of SNR
         fig = plot.node_uncertainty_with_snr(model)
         
-        raise a
         fig.savefig("figures/wg{wg}/wg{wg}-node-uncertainty-random-{param}.pdf"\
             .format(wg=wg, param=parameter))
         fig.savefig("figures/wg{wg}/wg{wg}-node-uncertainty-random-{param}.png"\

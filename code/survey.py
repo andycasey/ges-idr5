@@ -39,7 +39,7 @@ OLD_CLUSTER_NAMES = [
     "Trumpler23",
 ]
 
-def homogenise_cname_results(database, cname):
+def _follow_wg_provenance_rules(database, cname, column_names):
     """
     Return a row containing homogenised results for a single CNAME,
     by following the provenance rules specified by WG15 in the document at:
@@ -51,30 +51,22 @@ def homogenise_cname_results(database, cname):
 
     :param cname:
         The CNAME of the object in question.
+
+    :param column_names:
+        A list of column names to retrieve for each object.
     """
-
-    # Ensure that each cluster name actually exists.
-    for cluster_name in YOUNG_CLUSTER_NAMES + OLD_CLUSTER_NAMES:
-        check = database.retrieve(
-            """ SELECT count(*) 
-                FROM spectra
-                WHERE ges_fld like '{}%'""".format(cluster_name))
-
-        assert check is not None and check[0][0] > 1
-        print(cluster_name, check)
-
-    raise a
-
 
     # Get all results for this object
     results = database.retrieve_table(
-        """ SELECT * 
-            FROM wg_recommended_results, spectra 
-            WHERE cname = %s LIMIT 1""", (cname, ))
+        """ SELECT  DISTINCT ON (wg_recommended_results.wg)
+                    {column_names}
+            FROM    spectra, wg_recommended_results
+            WHERE   spectra.cname = '{cname}'
+              AND   spectra.cname = wg_recommended_results.cname""".format(
+        cname=cname, column_names=", ".join(column_names)))
 
     assert results is not None
-    assert len(set(results["wg"])) == len(results)
-
+    
     # Are there results from multiple WGs for this CNAME?
     if len(results) == 1:
         # No: there are only results from one WG
@@ -231,17 +223,38 @@ def homogenise_survey_results(database):
 
     # Remove any previous entries?
 
+    # Ensure that each cluster name actually exists.
+    for cluster_name in YOUNG_CLUSTER_NAMES + OLD_CLUSTER_NAMES:
+        check = database.retrieve(
+            """ SELECT count(*) 
+                FROM spectra
+                WHERE ges_fld like '{}%'""".format(cluster_name))
+        assert check is not None and check[0][0] > 1, \
+            "Does the cluster '{}' exist?".format(cluster_name)
+   
+    # Get all column names.
+    # HERE we select by WG12 because they will not have any provenance_columns   
+    faux_table = database.retrieve_table(
+        """ SELECT  DISTINCT ON (wg_recommended_results.wg)
+                    spectra.*, wg_recommended_results.*
+            FROM    spectra, wg_recommended_results
+            WHERE   spectra.cname = wg_recommended_results.cname
+              AND   wg_recommended_results.wg = '12'
+            LIMIT   1
+        """, prefixes=("spectra", "wg_recommended_results"))
+
+    # Exclude provenance_* column names
+    column_names = [c for c in faux_table.dtype.names if not c.startswith("provenance_")] 
+    
     # Get all the unique CNAMEs for which we have results.
-    cnames = database.retrieve_table(
-        "SELECT DISTINCT ON (cname) cname FROM results")
+    cnames = database.retrieve("SELECT DISTINCT ON (cname) cname FROM results")
     N = len(cnames)
 
     for i, cname in enumerate(cnames):
         logger.info("Homogenising CNAME {0}/{1}: {2}".format(i, N, cname))
 
-        result = homogenise_cname_results(database, cname)
-
-        raise a
+        result = _follow_wg_provenance_rules(database, cname[0], column_names)
+        
 
 
 

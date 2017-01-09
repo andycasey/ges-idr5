@@ -287,4 +287,153 @@ N = database.update(
     """.format(node_id))
 logger.info("Marked {} WG11/IACAIP results as out-of-grid.")
 
+raise Verify("Check that no nodes have 10105 propagated unles sthey are node = 8")
+raise Verify("Remove bad OACT results")
+"""
+Code used:
+
+update results set propagated_tech_from_result_id = null, propagated_tech = '', passed_quality_control = true where propagated_tech = '10105-11-08-00-A' and node_id != 8 and node_id != 10;
+
+3084 updated.
+"""
+
+# OACT is damaging.
+
+# node_id = 11 is WG11/OACT
+""" UPDATE  results
+    SET     passed_quality_control = false
+    WHERE   node_id = 11
+      AND   feh <= -0.5;
+"""
+# 672 rows affected
+
+
+# Since we can either just use a full record (e.g., TEFF/LOGG/FEH) or none of it,
+# we have to do the uncomfortable thing and just set all OACT logg results to NaN
+""" UPDATE  results
+    SET     logg = 'NaN'
+    WHERE   node_id = 11;
+"""
+# 6090 rows affected
+
+
+# Remove archival results for 5927 and M12
+"""UPDATE results SET passed_quality_control = false
+WHERE cname IN (
+    SELECT distinct on (r.cname) r.cname FROM nodes as n, results as r, spectra as s where r.node_id = n.id and r.cname = s.cname and (s.ges_fld like 'M12%' or s.ges_fld like 'NGC5927%') and n.wg = 11 and ges_type like 'AR_%'
+    );
+"""
+#
+ TODO:
+
+
+# Lumba cluster stars are a bit screwy
+# December 1, 2016
+#select distinct on (delta_teff, cname) r1.passed_quality_control as lumba_qc, r2.passed_quality_control as nice_qc, r1.teff - r2.teff as delta_teff, r1.logg - r2.logg as delta_logg, r1.feh - r2.feh as delta_feh, r1.cname, s.ges_type, s.ges_fld from results as r1, results as r2, spectra as s where r1.cname = r2.cname and r1.node_id = 2 and r2.node_id = 10 and r1.tech like '10210%' and r1.cname = s.cname and r1.teff <> 'NaN' and r2.teff <> 'NaN' and ges_type not like '%_SD_B%' and ges_type like 'GE_CL%' order by delta_teff, cname desc;
+
+"""
+UPDATE results set passed_quality_control = false 
+WHERE node_id = 2 and cname in (select r1.cname from results as r1, results as r2, spectra as s
+    where r1.cname = r2.cname and r1.node_id = 2 and r2.node_id = 10 and s.cname = r1.cname and s.ges_type not like '%_SD_B%' and ges_type like 'GE_CL%' and abs(r1.teff - r2.teff) > 1000 and r1.teff <> 'NaN' and r2.teff <> 'NaN');
+"""
+
+# Lumba bad convergence for M15 stars
+"""
+DELETE FROM wg_recommended_results where cname in ('21300431+1210561', '21300738+1210330');
+UPDATE results SET passed_quality_control = false WHERE  cname in ('21300431+1210561', '21300738+1210330') and node_id = 2;
+"""
+
+# Remove OACT and Vilnius for Rup134 to see if that improves clump.
+"""
+ges_idr5=# select distinct on (r.id) r.id from results as r, spectra as s, nodes as n where r.cname = s.cname and r.node_id = n.id and (n.id = 6 or n.id = 11) and r.passed_quality_control and s.ges_fld like 'Rup134%';
+   id   
+--------
+ 510895
+ 510896
+ 510897
+ 510898
+ 510899
+ 510900
+ 510901
+ 510902
+ 510903
+ 510904
+ 510905
+ 510906
+ 510907
+ 510908
+ 510909
+ 510910
+ 510911
+ 510912
+ 510913
+ 510914
+ 510915
+ 510916
+ 510917
+ 510918
+ 510919
+ 510920
+ 510921
+ 510922
+ 510923
+ 510924
+ 510925
+ 510926
+ 510927
+ 510928
+ 510929
+ 510930
+ 510931
+ 510932
+ 516985
+ 516986
+ 516987
+ 516988
+ 516989
+ 516990
+ 516991
+ 516992
+ 516993
+ 516994
+ 516995
+ 516996
+ 516997
+ 516998
+ 516999
+ 517000
+ 517001
+ 517002
+ 517003
+ 517004
+ 517005
+ 517006
+ 517007
+ 517009
+ 517010
+ 517011
+ 517012
+ 517013
+ 517014
+ 517015
+ 517016
+ 517017
+ 517018
+ 517019
+ 517020
+ 517021
+ 517022
+(75 rows)
+"""
+"""
+update results set passed_quality_control = false where id in (select distinct on (r.id) r.id from results as r, spectra as s, nodes as n where r.cname = s.cname and r.node_id = n.id and (n.id = 6 or n.id = 11) and r.passed_quality_control and s.ges_fld like 'Rup134%');
+"""
+
+
+# Identify outliers in the cluster measurements.
+#select distinct on (r.id, abs_delta_teff) r.id, r.cname, n.name, trim(r.tech) as tech, s.ges_fld, s.ges_type, r.teff, wgr.teff as recommended_teff, wgr.e_teff as recommended_e_teff, wgr.nn_nodes_teff, wgr.nn_spectra_teff, abs(wgr.teff - r.teff) as abs_delta_teff from results as r, nodes as n, spectra as s, wg_recommended_results as wgr where s.cname = r.cname and r.cname = wgr.cname and abs(wgr.teff - r.teff) > 500 and wgr.wg = 11 and n.id = r.node_id and n.wg = 11 and r.teff <> 'NaN' and wgr.teff <> 'NaN' and r.passed_quality_control and (s.ges_type like '%_OC%' or s.ges_type like '%_GC%' or s.ges_type like '%_CL%') order by abs_delta_teff desc, r.id asc;
+# --> saved to cluster-outlier.fits
+
+
+
 database.connection.commit()

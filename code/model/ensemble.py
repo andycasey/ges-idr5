@@ -43,7 +43,7 @@ def _guess_parameter_names(table, names):
 
 
 def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
-    stan_model=None, update_database=True):
+    stan_model=None, update_database=True, **kwargs):
     """
     Produce an unbiased estimate of an astrophyiscal parameter for a given
     survey object.
@@ -98,7 +98,8 @@ def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
     samples = stan_model._chains
     unique_node_ids = stan_model._metadata["node_ids"]
 
-    K = samples["truths"].shape[0]
+    # the .shape gives us the full extent (including burn-in)
+    K = samples["truths"].shape[0] / 2
     M = len(set(estimates["node_id"]))
 
     if 1 > N or N > K:
@@ -108,6 +109,9 @@ def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
     else:
         # Select N random indices from K
         indices = np.random.choice(K, N, replace=False)
+
+    # Take the end indices (e.g., ignore burn-in)
+    indices = indices - K
 
     estimates = estimates.group_by("node_id")
         
@@ -223,6 +227,11 @@ def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
     c = np.percentile(mu_samples, [16, 50, 84])
     central, pos_error, neg_error = (c[1], c[2] - c[1], c[0] - c[1])
     stat_error = np.median(np.sqrt(var_samples))
+    # stat_error**2 ~= sys_error**2 + rand_error**2
+    # sys_error**2 ~= stat_error**2 - rand_error**2
+    # sys_error ~= sqrt(stat_error**2 - rand_error**2)
+    sys_error = np.sqrt(
+        stat_error**2 - np.max([pos_error, np.abs(neg_error)])**2)
 
     if update_database:
         data = {
@@ -235,7 +244,8 @@ def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
             "e_{}".format(parameter): stat_error,
             "nn_nodes_{}".format(parameter): len(set(estimates["node_id"])),
             "nn_spectra_{}".format(parameter): len(set(estimates["filename"])),
-            "provenance_ids_for_{}".format(parameter): list(estimates["id"].data.astype(int))
+            "provenance_ids_for_{}".format(parameter): list(estimates["id"].data.astype(int)),
+            "sys_err_{}".format(parameter): sys_error
         }
 
         record = database.retrieve(
@@ -255,6 +265,8 @@ def _homogenise_survey_measurements(database, wg, parameter, cname, N=100,
                 data.values())
             logger.info(
                 "Updated record {} in wg_recommended_results".format(record[0][0]))
+
+            print(wg, cname, parameter, central, pos_error, neg_error, stat_error)
 
         else:
             new_record = database.retrieve(
@@ -621,7 +633,45 @@ class BaseEnsembleModel(object):
             self._database.connection.commit()
 
         return None
-        
+    
+
+    def homogenise_stars_matching_query(self, query, update_database=False,
+        **kwargs):
+        """
+        Homogenise the stellar astrophysical parameter for all stars in the
+        database that are analysed by the current working group, and match the
+        SQL query provided.
+        """
+
+        # Get all unique cnames.
+        records = self._database.retrieve_table(query)
+        assert records is not None and "cname" in records.dtype.names
+
+        # Get samples and data dictionary -- it will be faster.
+        if self._chains is None:
+            self._extract_chains(**kwargs)
+
+        assert self._data is not None
+
+        N = len(records)
+        for i, cname in enumerate(records["cname"]):
+
+            mu, e_pos, e_neg, e_stat = _homogenise_survey_measurements(
+                self._database, self._wg, self._parameter, cname,
+                stan_model=self, **kwargs)
+            
+            logger.info("Homogenised {parameter} for {cname} (WG{wg} {i}/{N}): "
+                "{mu:.2f} ({pos_error:.2f}, {neg_error:.2f}, {stat_error:.2f})"\
+                .format(
+                    parameter=self._parameter, cname=cname, 
+                    wg=self._wg, i=i+1, N=N, mu=mu, 
+                    pos_error=e_pos, neg_error=e_neg, stat_error=e_stat))
+
+        if kwargs.get("update_database", True):
+            self._database.connection.commit()
+
+        return None
+
 
     def homogenise_all_stars(self, **kwargs):
         """
@@ -646,6 +696,8 @@ class BaseEnsembleModel(object):
 
         assert self._data is not None
 
+        autocommit = kwargs.get("autocommit", False)
+
         N = len(records)
         for i, cname in enumerate(records["cname"]):
 
@@ -659,6 +711,9 @@ class BaseEnsembleModel(object):
                     parameter=self._parameter, cname=cname, 
                     wg=self._wg, i=i+1, N=N, mu=mu, 
                     pos_error=e_pos, neg_error=e_neg, stat_error=e_stat))
+
+            if autocommit:
+                self._database.connection.commit()
 
         if kwargs.get("update_database", True):
             self._database.connection.commit()
@@ -756,7 +811,7 @@ class EnsembleModel(BaseEnsembleModel):
 
     _MODEL_PATH = os.path.join(
         os.path.dirname(os.path.realpath(__file__)),
-        "ensemble-model.stan")
+        "ensemble-model-wg10-4.stan")
 
     def _prepare_data(self, parameter=None, default_sigma_calibrator=1e3,
         minimum_node_estimates=1, sql_constraint=None):
@@ -872,7 +927,7 @@ class EnsembleModel(BaseEnsembleModel):
 
             visits[c] = np.sum(np.any(np.isfinite(estimates[c]), axis=0))
 
-        
+
         # Remove any nodes with zero measurements.
         keep = np.array([np.any(np.isfinite(estimates[:, n, :])) for n in range(N)])
         estimates = estimates[:, keep, :]

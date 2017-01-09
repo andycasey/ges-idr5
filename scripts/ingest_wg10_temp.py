@@ -29,7 +29,97 @@ database = GESDatabase(**credentials)
 # Ingest shitty WG10 results
 data = Table.read("recommended-results/GES_iDR5_WG10_Recommended_PERSETUP.fits")
 
-default_row = { "wg": 10 }
+
+
+_FITS_FORMAT_ADAPTERS = {
+    "snr": float,
+    "vel": float,
+    "e_vel": float,
+    "vrot": float,
+    "e_vrot": float,
+    "teff": float,
+    "e_teff": float,
+    "nn_teff": int,
+    "enn_teff": float,
+    "nne_teff": float,
+    "sys_err_teff": float,
+    "logg": float,
+    "e_logg": float,
+    "nn_logg": int,
+    "enn_logg": float,
+    "nne_logg": float,
+    "sys_err_logg": float,
+    "lim_logg": int,
+    "feh": float,
+    "e_feh": float,
+    "nn_feh": int,
+    "enn_feh": float,
+    "nne_feh": float,
+    "sys_err_feh": float,
+    "xi": float,
+    "e_xi": float,
+    "nn_xi": int,
+    "enn_xi": float,
+    "nne_xi": float,
+    "mh": float,
+    "e_mh": float,
+    "nn_mh": int,
+    "enn_mh": float,
+    "nne_mh": float,
+    "alpha_fe": float,
+    "e_alpha_fe": float,
+    "nn_alpha_fe": int,
+    "enn_alpha_fe": float,
+    "nne_alpha_fe": float,
+    "vrad": float,
+    "e_vrad": float,
+    "vsini": float,
+    "e_vsini": float,
+
+    "lim_vsini": int,
+    "teff_phot": float,
+    "e_teff_phot": float,
+    "teff_irfm": float,
+    "e_teff_irfm": float,
+    "fbol_irfm": float,
+
+    "veil": float,
+    "e_veil": float,
+    "ew_li":  float,
+    "lim_ew_li": int,
+    "e_ew_li": float, 
+    "ewc_li": float, 
+    "lim_ewc_li": int, 
+    "e_ewc_li": float,
+    "ew_ha_acc": float,
+    "e_ew_ha_acc": float,
+    "ha10": float,
+    "e_ha10": float,
+    "ew_ha_chr": float,
+    "e_ew_ha_chr": float,
+    "fha_chr": float,
+    "e_fha_chr": float,
+    "fwzi": float,
+    "e_fwzi": float,
+    "ew_hb_chr": float,
+    "e_ew_hb_chr": float,
+    "fhb_chr": float,
+    "e_fhb_chr": float,
+    "log_mdot_acc": float,
+    "e_log_mdot_acc": float,
+    "log_l_acc": float,
+    "e_log_l_acc": float,
+    "gamma": float,
+    "e_gamma": float,
+    "convol": float,
+    "e_convol": float,
+    "m_alpha": float,
+    "m_broad": float,
+    "m_loops": float,
+}
+
+wg = 110
+default_row = { "wg": wg }
 
 columns = ("wg", # For default row
     "cname", "filename", "setup", "snr",
@@ -96,18 +186,28 @@ for key, new_dtype in _FITS_FORMAT_ADAPTERS.items():
     data.rename_column(tmp_key_format.format(key.upper()), key.upper())
 
 
-data = data.group_by("CNAME")
+data = data.group_by(["CNAME", "SETUP"])
+N = len(data.groups)
 
 for i, group in enumerate(data.groups):
 
-    # Fuck it: take the first setup result for this star
     row = group[0]
+    """
+    hr1021 = np.where(group["SETUP"] == "HR10|HR21")[0]
+    if not hr1021:
+        row = group[0]
+    else:
+        row = group[hr1021[0]]
+    """
 
-    logger.info("Ingesting row {}/{} from WG{}".format(i, N, wg))
     row_data = {}
     row_data.update(default_row)
     row_data.update(dict(zip(columns[1:], [row[c.upper()] for c in columns[1:]])))
 
+    logger.info("Ingesting row {}/{} from WG{}: {} / {} / {}".format(i, N, row_data["wg"], 
+        row_data["teff"], row_data["logg"], row_data["feh"]))
+
+  
     # Trim strings!
     for k in row_data.keys():
         if isinstance(row_data[k], str):
@@ -118,5 +218,9 @@ for i, group in enumerate(data.groups):
             ", ".join(columns),
             ", ".join(["%({})s".format(column) for column in columns])),
         row_data)
+
+    if (i % 100) == 0:
+        print("COMMITTING")
+        database.connection.commit()
 
 database.connection.commit()

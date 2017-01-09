@@ -18,15 +18,16 @@ with open(db_filename, "r") as fp:
 database = GESDatabase(**credentials)
 
 
+# Produce a PER-SETUP file even though they will be duplicates.
+ship.wg_recommended_sp_template(database,
+    "fits-templates/recommended-templates/GES_iDR5_WG11_RecommendedTemplate_16072016_PERSETUP_FixedLengthFLAGColumns.fits",
+    "outputs/GES_iDR5_WG11_Recommended_PERSETUP.fits",
+    11, overwrite=True)
+
 # Produce a per CNAME file.
 ship.wg_recommended_sp_template(database,
-    "fits-templates/recommended-templates/GES_iDR5_WG11_RecommendedTemplate_16072016.fits",
+    "fits-templates/recommended-templates/GES_iDR5_WG11_RecommendedTemplate_16072016_FixedLengthFLAGColumns.fits",
     "outputs/GES_iDR5_WG11_Recommended.fits",
     11, overwrite=True)
 
 
-# Produce a PER-SETUP file even though they will be duplicates.
-ship.wg_recommended_sp_template(database,
-    "fits-templates/recommended-templates/GES_iDR5_WG11_RecommendedTemplate_16072016_PERSETUP.fits",
-    "outputs/GES_iDR5_WG11_Recommended_PERSETUP.fits",
-    11, overwrite=True)

@@ -23,31 +23,13 @@ isochrones = glob("isochrones/*.dat")
 
 debug = True
 
-for wg in (11, ):
 
-    raise a
-    
-    # Plot benchmarks first.
-    fig = plot.wg_benchmark_performance(database, wg, benchmarks, 
-        show_recommended=True, ylims=dict(TEFF=1000, LOGG=1, FEH=1))
-    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks-zoom.pdf".format(wg=wg), **savefig_kwds)
-    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks-zoom.png".format(wg=wg), **savefig_kwds)
+cluster_velocities = Table.read("fits-templates/oc_gc_radial_vel.dat", format="ascii")
 
-
-    fig = plot.wg_benchmark_performance(
-        database, wg, benchmarks, show_recommended=True)
-    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks.pdf".format(wg=wg), **savefig_kwds)
-    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks.png".format(wg=wg), **savefig_kwds)
-
-    raise a
-
-
-    # Plot clusters.
-
-    # Plot against clusters.
-    cluster_velocities = Table.read("fits-templates/oc_gc_radial_vel.dat", format="ascii")
+for wg in (10, 11, 20, ):
 
     for isochrone in isochrones:
+
         cluster = isochrone.split("/")[-1].split("_")[0]
         if cluster == "gamma2-Vel":
             cluster = "gamma2_Vel"
@@ -74,7 +56,7 @@ for wg in (11, ):
 
         else:
             if fig is not None:
-                basename = "figures/wg{wg}/wg{wg}-cluster-{cluster}".format(
+                basename = "figures/wg{wg}/wg{wg}-cluster-{cluster}-poly".format(
                     wg=wg, cluster=cluster)
 
                 fig.savefig("{}.pdf".format(basename), **savefig_kwds)
@@ -94,10 +76,28 @@ for wg in (11, ):
 
         else:
             if fig is not None:
-                basename = "figures/wg{wg}/wg{wg}-cluster-{cluster}-limited"\
+                basename = "figures/wg{wg}/wg{wg}-cluster-{cluster}-limited-poly"\
                             .format(wg=wg, cluster=cluster)
 
                 fig.savefig("{}.pdf".format(basename), **savefig_kwds)
                 fig.savefig("{}.png".format(basename), **savefig_kwds)
 
-    raise a
+
+    # Plot benchmarks first.
+    fig = plot.wg_benchmark_performance(database, wg, benchmarks, 
+        show_recommended=True, ylims=dict(TEFF=1000, LOGG=1, FEH=1),
+
+        recommended_table="wg_recommended_results")
+    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks-zoom-poly.pdf".format(wg=wg), **savefig_kwds)
+    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks-zoom-poly.png".format(wg=wg), **savefig_kwds)
+
+
+    fig = plot.wg_benchmark_performance(
+        database, wg, benchmarks, show_recommended=True,
+         recommended_table="wg_recommended_results")
+    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks-poly.pdf".format(wg=wg), **savefig_kwds)
+    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks-poly.png".format(wg=wg), **savefig_kwds)
+
+
+raise a
+
