@@ -8,10 +8,10 @@
 \IfFileExists{vc.tex}{\input{vc.tex}}{\newcommand{\githash}{UNKNOWN}\newcommand{\giturl}{UNKNOWN}}
 
 \newcommand{\acronym}[1]{{\small{#1}}}
+\newcommand{\project}[1]{\textsl{#1}}
+\newcommand{\article}{\textit{Article}}
 
 \newcommand{\ges}{\acronym{GES}}
-\newcommand{\project}[1]{\textsl{#1}}
-
 \newcommand{\gaiaeso}{\project{Gaia-ESO}}
 
 \newcommand{\teff}{T_{\mathrm{eff}}}
@@ -20,7 +20,7 @@
 \newcommand{\normal}[2]{\mathcal{N}\left(#1, #2\right)}
 
 \begin{document}
-\title{The Gaia-ESO Survey: Combined estimates from multiple stellar analysis pipelines}
+\title{The \gaiaeso\ Survey: Combined estimates from multiple stellar analysis pipelines}
 
 \author{
     Andrew~R.~Casey\altaffilmark{1},
@@ -28,7 +28,22 @@
 
 
 \begin{abstract}
-  Some stuff
+	% The GES scientific goals
+	% GES has a unique analysis strategy.
+	% Allows XYZ benefits.
+	% Here we describe the process for homogenisation of stellar parameters for FGK-type
+	% stars analysed with both UVES and GIRAFFE data, in order to produce recommended results.
+	% We construct a noise model for each node, and infer error behaviour for each node as a
+	% function of S/N and stellar parameters.
+	% We combine these to produce results.
+	% For the first time, we describe blind tests conducted in GES to examine subjectivity, etc.
+	% The typical reported uncertainties in stellar parameters are XYZ
+	% We outline a list of recommended best practices and lessons learned for stellar parameter determination
+	% We provide a common, homogeneous metallicity scale for GCs and OCs, and demonstrate that GES results can be used to infer diffusion/settling in clusters??
+	% Other potential science highlights:
+	% --> Something with velocity/metallicity in the field? two-point correlation function.
+	% --> High-/low-alpha sequence with GIRAFFE stuff.
+	
 \end{abstract}
 
 
@@ -71,37 +86,136 @@
 \section{Methods}
 \label{sec:methods}
 
-% Multiple analysis strategy: why
-
-% primary advantage and disadvantage to multiple analysis strategy
-
-% Description of two parameter rounds: stellar parameters, abundances
-
-% What's reported by each node? Flags? Consistency of flags?
-
-% Description of pipelines in appendix 
-
-% Commonalities between nodes: model atmospheres, line list, normalized spectra, initial params, spectrum library, xi calibration if necessary.
+The unique parallel analysis strategy adopted by the \ges\ provides a number of
+benefits over other spectroscopic surveys.  We can identify the strengths and
+weaknesses of state-of-the-art analysis methods, quantify the systematic 
+differences that arise from \emph{defensible analysis decisions}, and produce an 
+unbiased estimator of stellar parameters with representative uncertainties that account
+for both random and systematic contributions.  Although this procedure requires an
+enormous amount of collaboration and coordination, it is necessary to provide
+a thorough evaluation of systematic uncertainties present between analysis 
+pipelines that are routinely used in the literature.
 
 
+We perform the \ges\ spectroscopic analysis for each data release in two 
+consecutive rounds.  In the first round, the stellar parameters are reported by
+each analysis group.  The homogenisation of stellar parameters is performed by the
+working group leads (WG10, WG11, WG12, WG13), and the recommended results from each
+working group are submitted to the top-level homogenisation group, WG15. WG15 makes
+checks to ensure the results from different working groups are on the same scale, 
+and combines the results from multiple working groups to produce a single set of 
+\emph{Survey}-level recommended stellar parameters for each star \citep{Hourihane:2017}.
+These recommended results are used in the second analysis round, where individual 
+nodes report detailed chemical abundances given the recommended stellar parameters.
+In this \article\ we describe only the first round of analysis; the homogenisation 
+of detailed chemical abundances for FGK-type stars will be described in a companion 
+contribution (Casey et al., 2017).
+
+
+\subsection{Analysis methods}
+\label{sec:analysis-nodes}
+% How many nodes contributed to DR5 in WG11/WG10, and how many results did they provide per setup? (what fraction?)
+
+% Summary description of nodes
+% What do the nodes provide? Most parameters, flags, etc.
+% Detailed description of pipelines in appendix 
 
 % EW method and comparisons -- into an appendix?.
 
+\subsubsection{Summary of (dis-)similarities in analysis methods}
+\label{sec:analysis-node-similarities}
 
-% What do the nodes provide? Most parameters, flags, etc.
+Despite the multiple analysis strategies adopted in \ges, there are a number of
+commonalities between the nodes. Specifically, all FGK-analysis nodes use the same:
+\begin{enumerate}
+  \item Updated MARCS model photospheres \citep{BG}.
+  \item Atomic and molecular line lists, updated with recently measured oscillator strengths \citep{Heiter:2016,someone}.
+  \item Rest-frame, pseudo-continuum-normalised spectra are provided to all nodes by the data reduction group. Individual echelle orders are also provided. Inverse variance arrays are available for all flux arrays.
+  \item Initial stellar parameters are provided for all stars observed with GIRAFFE.
+  \item Infrared photometry is available for all targets.
+  \item For methods that perform template-fitting, all nodes are provided with a grid of high-resolution continuum-normalised spectra synthesised using (1) and (2).  The synthetic grid covers the entire wavelength region used for \ges.
+  \item Where relevant, nodes are provided with empirical microturbulence calibrations for main-sequence, sub-giant, and giant stars. These relations are given in Appendix \ref{app:xi}.
+\end{enumerate}
 
-% CONTINUE from here:
-% Stellar parameter determination
+
+There are three caveats to the listed items above.  Firstly, while nodes are encouraged
+to use the same empirically-scaled interpolator for photospheric models \citep{Masseron:2006},
+this is not required.  Secondly, the nodes are not required to use the 
+pseudo-continuum-normalised spectra provided to them; each node can chose to 
+adopt their own continuum normalisation procedure.  Lastly, although all nodes use the 
+same atomic and molecular data, the nodes are free to chose \emph{which} lines (or 
+spectral regions) to use when fitting their models to the data. 
 
 
-% Stellar parameter homogenisation
+In summary, the analysis nodes generally differ only in \emph{defensible analysis decisions}:
+there is no well-founded \emph{a priori} reason that would explain why one method should be
+significantly better or worse across the space of stellar parameters.  For these reasons,
+the Gaia-ESO Survey is well-placed to critically examine what analysis decisions will
+objectively result in more accurate or precise results.
+
+
+\subsection{Flag propagation}
+\label{sec:flag-propagation}
+
+In earlier data releases the analysis nodes were \emph{encouraged} to submit flags that
+describe technicalities that may have affected their analysis, or peculiar issues
+that were identified in a star or spectrum.  These flags proved invaluable in enabling 
+homogenisation leads to identify scenarios where particular pipelines perform poorly. 
+For example, OACT (WG11) were able to identify and account for high rotation, whereas 
+ULB (WG11) would not identify fast rotators, and ULB (WG11) would report significantly
+noisier stellar parameters for fast rotators.
+
+
+From DR5 onwards, these examples led to the decision to \emph{require} analysis nodes 
+to submit stellar parameters ($\teff$, $\logg$, [Fe/H], and $\xi$ where appropriate),
+for every spectrum, or supply a technical flag explaining why no stellar parameters
+could be derived (preferably supply both when appropriate). The full list of flags used
+in DR5 is listed in Appendix \ref{appendix:flags}.  In Figures \ref{fig:flag-propagation-wg10}
+and \ref{fig:flag-propagation-wg11} we show heatmaps of flag usage between different 
+analysis nodes in WG10 and WG11, respectively.  If all nodes reported the same flags then
+a one-to-one density mapping would be visible.  Note that here we are only showing instances
+where multiple flags have been reported for a single spectrum: for the sake of clarity we
+do not show situations where only one flag is reported by a single node.  Figures 
+\ref{fig:flag-propagation-wg10} and \ref{fig:flag-propagation-wg11} demonstrate that when one analysis node reports a flag, it
+is highly unlikely that the same issue has been reported by another node. The most common
+situation is that one node will report a descriptive flag (e.g., \texttt{10106} 
+to indicate a broken spectrum containing a picket-fence or Heaviside pattern), and other
+nodes will report a non-specific flag (e.g., \texttt{10302}: code convergence issue).
+
+
+We constructed a sequence of rules to propagate detailed flag information to other results.
+We categorised these rules to propagate to results that were derived from either the same 
+spectrum (e.g., \texttt{10106} broken spectrum), or the same star (e.g., suspected binary 
+star system).  These propagation rules are listed in Tables \ref{tab:flag-propagation-spectrum}
+and \ref{tab:flag-propagation-cname}. Any results with propagated technical flags were 
+marked as failing internally quality control standards, and were not used in the homogenisation
+process.  Results with any of the flags listed in Table \ref{tab:node-specific-flags} were
+were also excluded from homogenisation, however those flags were considered `node-specific'
+in that they do not necessarily require propagation to other results derived from the same
+spectrum or star.
+
+
+We also excluded all cluster records (\texttt{GES\_TYPE} of 'XX-XX-XX' or `XX-XX-XX') 
+reported by OACT (WG11).  Although OACT performed excellently in the benchmark and blind tests
+in WG11, we identified convergence issues in cluster field, which consequently altered the
+metallicity scale of globular clusters.
+
+% Any other exclusions? WG10 IAC results at edges?
+
+The total number of records (set of $\teff$, $\logg$, [Fe/H]) that were marked as failing
+internal quality controls due to reported or propagated flags were XXX for WG10 and XXX for
+WG11.  This represents a small fraction of the total number of records submitted in each
+working group (XXX\% for WG10 and XXX\% for WG11).  The number of stars (unique \texttt{CNAME}s) where all results were excluded due to reported or propagated flags was XXX for WG10 and XXX for WG11.  These cases were principally due to data reduction issues (e.g., flags 
+\texttt{10100-10150}), and these examples were supplied to the data reduction group to
+examine before the sixth data release.
+
+
+
 \subsection{Stellar parameter homogenisation}
 \label{sec:stellar-parameter-homogenisation}
 
 
-Flag propagation.
-
-\noindent{}We make the following assumptions when constructing a model for homogenisation:
+\noindent{}We make the following assumptions in our homogenisation model:
 
 \begin{itemize}
     \item   \emph{The uncertainties reported by each node are incorrect.}
@@ -126,13 +240,9 @@ Flag propagation.
             stellar parameters reported by any two nodes will be correlated
             to some degree. The level of correlation between two nodes is unknown.
             This assumption arises from commonalities that led to the estimates from
-            each node. Specifically: all nodes are instructed to use a common list 
-            of line transitions, the same MARCS model photospheres, some nodes employ
-            similar methods (e.g., spectral synthesis), and all nodes derive their 
-            estimates from the same data (in some instances, even the same 
-            continuum-normalized spectra are used).
-
-            We note that even two nodes with identical methods are not guaranteed
+            each node (Section \ref{sec:analysis-node-similarities}).
+            
+            We reiterate that even two nodes with identical methods are not guaranteed
             to be perfectly correlated, because the \emph{choice} of which transitions
             or spectral regions to use is not prescribed.
 
@@ -140,16 +250,18 @@ Flag propagation.
             No spectrum is guaranteed to have stellar parameters reported by all
             nodes. This assumption is a consequence of the different expertise in
             \gaiaeso: no node or method is expert across the entire range of parameter
-            space explored. If stellar parameters are not reported, then the reason 
-            must be specified through a \texttt{TECH} flag (see Section \ref{sec:flags}
-            on flag usage).
-
+            space explored. 
+            
     \item   \emph{Random uncertainties in stellar parameters will increase with
-            decreasing S/N ratio.}
+            decreasing S/N ratio.} 
 
     \item   \emph{All `well-studied' stars have noisy measurement, and their values
-            are not known with infinite precision.} But we assume they are unbiased!
-
+            are not known with infinite precision.} That is to say, we assume that there
+            are some well-studied stars with unbiased measurements, but those
+            measurements are noisy. For this reason, we must include the stellar
+            parameters of each well-studied star as a model parameter, and use 
+            non-spectroscopic data to place a strong prior on that stellar parameter.
+            
     \item   \emph{The systematic uncertainty will vary across parameter space.}
 
     \item   \emph{All stellar parameter estimates are normally-distributed draws about 
@@ -190,22 +302,21 @@ $N_{missing}$ models the missing data points for the calibrator spectra, the
 $6N_{nodes}$ summarises parameters that model biases, as well as systematic
 and random uncertainties. The final term $\frac{N_{nodes}!}{2(N_{nodes} - 2)!}$
 is the number of correlation coefficients between all nodes.\footnote{
-This inference problem is numerically unstable, as there are many model parameters
-which are used toi
-
-
- construct a covariance matrix that is sampled
-
-
-In practice
-we include the Cholesky decomposition $L$ of the $N \times N$ correlation matrix $\rho$
-as model parameters instead of directly modeling the $\rho$ terms.  The correlation
-matrix can be reconstructed by $\rho = (IL)\cdot(IL)^T$ where $I$ is the $N \times N$
-identity matrix. This parameterisation helps ensure that the resulting covariance
-matrix $\mathbf{\Sigma}$ is positive semi-definite, and can therefore be used for
-sampling.} 
+This inference problem is numerically unstable because a \emph{positive semi-definite}
+covariance matrix must be constructed from the model parameters in every MCMC draw, 
+and there is no joint prior available to ensure that the positive semi-definite 
+condition is met.  Although there are parameterisations that will help enforce 
+this condition \citep{Pinheiro:1996}, in practice we found that including 
+the Cholesky decomposition $L$ of the $N \times N$ correlation matrix $K$ as model
+parameters --- instead of directly modelling the set of node correlation 
+coefficients $\{\rho\}$ --- was sufficient to ensure positive-semidefinite 
+covariance matrices and produce sensible solutions.  The correlation matrix can 
+then be reconstructed by $K = (IL)\cdot(IL)^T$ where $I$ is the $N \times N$ identity
+matrix.  This representation implies a uniform prior on all correlation coefficients
+$p\left(\rho\right) = \mathcal{U}\left(-1, +1\right)$.}
 
 % Priors
+
 
 
 We implemented the model in \texttt{Stan}, a probabilistic programming
@@ -253,5 +364,41 @@ N chains, thinning, N iterations. Convergence criteria.
 
 % The final paragraph should contain a succint forward outlook of how good or bad an idea this was.
 
+\begin{thebibliography}{}
+\bibitem[Pinheiro \& Bates(1996)]{Pinheiro:1996} Pinheiro, J.~C., \& Bates, D.~M.\ 1996, Statistics and Computing, 6, 3
+
+
+\end{thebibliography}
+
+\newpage
+\appendix
+\section{Microturbulence calibrations} \label{app:xi}
+
+% Version 2.0 taken from http://great.ast.cam.ac.uk/GESwiki/GesWg/GesWg11/Microturbulence
+
+The following microturbulence calibrations were recommended for nodes to use where appropriate. For main-sequence or sub-giant stars with $\teff >= 5000$~K and $\logg >= 3.5$,
+
+\begin{equation}
+\xi = 1.05 + 2.51\times10^{-4}(\teff T_0) + 1.5\times10^{-7}(\teff - T_0)^2 - 0.14(\logg - g_0) - 0.005(\logg - g_0)^2 + 0.05\feh + 0.01\feh^2 \quad ,
+\end{equation}
+
+\noindent{}and for main-sequence or sub-giant stars with $\teff < 5000$~K,
+
+\begin{equation}
+\xi = 1.05 + 2.51\times10^{-4}(5000 - T_0) + 1.5\times10^{-7}(5000 - T_0)^2 - 0.14(\logg - g_0) - 0.005(\logg - g_0)^2 + 0.05\feh + 0.01\feh^2 \quad ,
+\end{equation}
+
+\noindent{}and for giant stars:
+
+\begin{equation}
+\xi = 1.25 + 4.01\times10^{-4}(\teff - T_0) + 3.1\times10^{-7}(\teff - T_0)^2 - 0.14(\logg - g_0) - 0.05(\logg - g_0)^2 + 0.05\feh + 0.01\feh^2 \quad .
+\end{equation}
+
+\noindent{}In all three cases above: $T_0 = 5500$~K and $g_0 = 4.0$.
+
+
+\section{Flags} \label{app:flags}
+
+\section{\texttt{Stan} code for homogenisation noise model} \label{app:stan-code}
 
 \end{document}
