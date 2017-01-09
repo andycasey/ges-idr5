@@ -435,5 +435,26 @@ update results set passed_quality_control = false where id in (select distinct o
 # --> saved to cluster-outlier.fits
 
 
+# Remove OACT -- we have to.
+node_id = database.retrieve_node_id(11, "OACT")
+database.execute(
+    "UPDATE results SET passed_quality_control = false WHERE node_id = %s", (node_id, ))
+
+
+# Remove Nice/Vilnius giant star  results in M67 -- something to do with rotation?
+database.execute(
+    """ UPDATE results
+        SET passed_quality_control = false
+        WHERE id IN (
+            SELECT DISTINCT ON (r.id) r.id
+            FROM results AS r, nodes AS n, spectra AS s
+            WHERE r.cname = s.cname
+              AND r.node_id = n.id
+              AND n.wg = 11
+              AND (n.name LIKE 'Vilnius%' OR n.name LIKE 'Nice%')
+              AND s.ges_fld LIKE 'M67%'
+              AND r.passed_quality_control
+              AND r.teff < 5250
+              AND r.logg < 3.85);""")
 
 database.connection.commit()

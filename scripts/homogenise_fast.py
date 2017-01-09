@@ -105,14 +105,28 @@ for wg in wgs:
             model.write(model_path, 
                 overwrite=True, __ignore_model_pars=("Sigma", "full_rank_estimates"))
 
-        #model.homogenise_all_stars(update_database=True)
+        model.homogenise_all_stars(update_database=True)
         #model.homogenise_stars_matching_query(
         #    """SELECT distinct on (r.cname) r.cname FROM results as r, spectra as s, nodes as n where n.id = r.node_id and s.cname = r.cname and (
         #        s.ges_type like '%_OC%' or s.ges_type like '%_GC%' or s.ges_type like '%_CL%') and n.wg = 11""")
-        model.homogenise_stars_matching_query(
-            """SELECT distinct on (r.cname) r.cname FROM results as r, spectra as s, nodes as n where n.wg = 11 and s.cname = r.cname and s.ges_fld like 'Rup134%'""")
+        #model.homogenise_stars_matching_query(
+        #    """SELECT distinct on (r.cname) r.cname FROM results as r, spectra as s, nodes as n where n.wg = 11 and s.cname = r.cname and s.ges_fld like 'Rup134%'""")
+        #model.homogenise_stars_matching_query(
+        #    """ SELECT DISTINCT ON (r.cname) r.cname
+        #        FROM results AS r, spectra AS s, NODES AS n
+        #        WHERE n.wg = 11
+        #          AND s.cname = r.cname
+        #          AND s.ges_fld LIKE 'M67%'"""
+        #    )
         
-
+        #model.homogenise_stars_matching_query(
+        #    """ SELECT DISTINCT ON (r.cname) r.cname
+        #        FROM results AS r, 
+        #             spectra as s,
+        #             nodes as n
+        #        WHERE n.wg = 11
+        #          AND s.cname = r.cname
+        #          AND s.ges_fld like 'NGC6633%'""")
 
 # - VROT
 # - VEL
