@@ -1,0 +1,28 @@
+
+# These are all the unique flags used in WG10:
+
+# > 10010-10-05-00-A # No results or inaccurate results: SNR < 10 for at least one setting
+# > 10050-10-05-00-A # No results or inaccurate results: SNR < 50 for at least one setting
+# > 10153-10-05-01-A # Discrepant radial velocities (use suffix to specify the threshold; e.g., |RV_max-RV_min| > 5*err_RV )
+# > 10302-10-05-01-A # Code convergence issue: one of more convergence criteria (node-specific) could not be fulfilled. Criteria to be described using the suffix
+# > 10302-10-15-01-A # Code convergence issue: one of more convergence criteria (node-specific) could not be fulfilled. Criteria to be described using the suffix
+# > 10308-10-05-01-A # One or more parameter (which could not be identified) outside the node's grid; if possible rather use 10303-10307 flags
+# > 10399-10-06-00-B # No parameters provided because of lack of time
+# > 13020-10-05-01-A # Suspicious stellar parameters because temperature (Teff) is on the node's grid edge. Conditions to be described using the suffix
+# > 13021-10-05-01-A # Suspicious stellar parameters because gravity (log g) is on the node's grid edge. Conditions to be described using the suffix
+# > 13022-10-05-01-A # Suspicious stellar parameters because metallicity ([M/H] or [Fe/H]) is on the node's grid edge. Conditions to be described using the suffix
+
+# Anything matching these flags will cause us to mark that particular node 
+# result as being suspicious, and won't get used in homogenisation.
+node_specific_flags:
+  no_constraint:
+    - 10010 # No results or inaccurate results: SNR < 10 for at least one setting
+    - 10050 # No results or inaccurate results: SNR < 50 for at least one setting
+    - 10153 # Discrepant radial velocities (use suffix to specify the threshold; e.g., |RV_max-RV_min| > 5*err_RV )
+    - 10302 # Code convergence issue: one of more convergence criteria (node-specific) could not be fulfilled. Criteria to be described using the suffix
+    - 10308 # One or more parameter (which could not be identified) outside the node's grid; if possible rather use 10303-10307 flags
+    - 10399 # No parameters provided because of lack of time
+    - 13020 # Suspicious stellar parameters because temperature (Teff) is on the node's grid edge. Conditions to be described using the suffix
+    - 13021 # Suspicious stellar parameters because gravity (log g) is on the node's grid edge. Conditions to be described using the suffix
+    - 13022 # Suspicious stellar parameters because metallicity ([M/H] or [Fe/H]) is on the node's grid edge. Conditions to be described using the suffix
+    
