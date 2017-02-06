@@ -26,7 +26,11 @@ debug = True
 
 cluster_velocities = Table.read("fits-templates/oc_gc_radial_vel.dat", format="ascii")
 
-for wg in (10, 11, 20, ):
+
+for wg in (10, ):
+
+    sql_constraint = "TRIM(r.SETUP) = 'HR10|HR21'"
+
 
     for isochrone in isochrones:
 
@@ -47,56 +51,62 @@ for wg in (10, 11, 20, ):
         try:
 
             fig = plot.cluster(database, cluster, wg,
-                isochrone_filename=isochrone, vel_range=vel_range)
+                isochrone_filename=isochrone, vel_range=vel_range,
+                sql_constraint=sql_constraint)
 
         except:
             if debug: raise
-            logger.exception(
+            print(
                 "Could not create cluster {} figure for {}:".format(cluster, wg))
 
         else:
             if fig is not None:
-                basename = "figures/wg{wg}/wg{wg}-cluster-{cluster}-poly".format(
+                basename = "figures/wg{wg}/wg{wg}-cluster-{cluster}".format(
                     wg=wg, cluster=cluster)
 
                 fig.savefig("{}.pdf".format(basename), **savefig_kwds)
                 fig.savefig("{}.png".format(basename), **savefig_kwds)
-
+                print("Created figure {}.pdf".format(basename))
+                
 
 
         try:
             fig = plot.cluster(database, cluster, wg,
                 isochrone_filename=isochrone, vel_range=vel_range,
-                limit_to_isochrone_range=True)
+                limit_to_isochrone_range=True,
+                sql_constraint=sql_constraint)
 
         except:
             if debug: raise
-            logger.exception(
+            print(
                 "Could not create cluster {} figure for {}:".format(cluster, wg))
 
         else:
             if fig is not None:
-                basename = "figures/wg{wg}/wg{wg}-cluster-{cluster}-limited-poly"\
+                basename = "figures/wg{wg}/wg{wg}-cluster-{cluster}-limited"\
                             .format(wg=wg, cluster=cluster)
 
                 fig.savefig("{}.pdf".format(basename), **savefig_kwds)
                 fig.savefig("{}.png".format(basename), **savefig_kwds)
+                print("Created figure {}.pdf".format(basename))
+
 
 
     # Plot benchmarks first.
     fig = plot.wg_benchmark_performance(database, wg, benchmarks, 
         show_recommended=True, ylims=dict(TEFF=1000, LOGG=1, FEH=1),
-
+        recommended_sql_constraint="TRIM(wgr.SETUP) = 'HR10|HR21'",
         recommended_table="wg_recommended_results")
-    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks-zoom-poly.pdf".format(wg=wg), **savefig_kwds)
-    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks-zoom-poly.png".format(wg=wg), **savefig_kwds)
+    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks-zoom.pdf".format(wg=wg), **savefig_kwds)
+    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks-zoom.png".format(wg=wg), **savefig_kwds)
 
 
     fig = plot.wg_benchmark_performance(
         database, wg, benchmarks, show_recommended=True,
-         recommended_table="wg_recommended_results")
-    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks-poly.pdf".format(wg=wg), **savefig_kwds)
-    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks-poly.png".format(wg=wg), **savefig_kwds)
+        recommended_sql_constraint="TRIM(wgr.SETUP) = 'HR10|HR21'",
+        recommended_table="wg_recommended_results")
+    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks.pdf".format(wg=wg), **savefig_kwds)
+    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks.png".format(wg=wg), **savefig_kwds)
 
 
 raise a

@@ -4,3 +4,4 @@ from clusters import *
 from nodes import *
 from benchmarks import *
 import flags
+import blind

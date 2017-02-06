@@ -9,24 +9,24 @@
 # (the dash - is included for you)
 propagate_flags_by_spectrum:
   no_constraint:
-    - 10100 # Saturated spectrum
-    - 10103 # Suspicious or bad co-addition of exposures
-    - 10104 # Suspicious or bad spectrum normalisation
-    - 10106 # Broken spectrum (picket-fence pattern, Heaviside pattern, )
-    - 10107 # Many or badly placed remaining cosmics
-    - 10108 # Leak of SimCal fibres in science/sky spectra causing spurious emission features
-    - 10110 # Suspicious or bad sky subtraction, to be specified using the suffix (it includes problems like: over-subtracted or below-zero spectrum, under-subtraction, velocity mismatch (producing spurious P-Cygni or inverse-P-Cygni-like residuals), problematic airglow subtraction)
-    - 10150 # Suspicious or bad cross-correlation function (CCF)
+    - 10100-11 # Saturated spectrum
+    - 10103-11 # Suspicious or bad co-addition of exposures
+    - 10104-11 # Suspicious or bad spectrum normalisation
+    - 10106-11 # Broken spectrum (picket-fence pattern, Heaviside pattern, )
+    - 10107-11 # Many or badly placed remaining cosmics
+    - 10108-11 # Leak of SimCal fibres in science/sky spectra causing spurious emission features
+    - 10110-11 # Suspicious or bad sky subtraction, to be specified using the suffix (it includes problems like: over-subtracted or below-zero spectrum, under-subtraction, velocity mismatch (producing spurious P-Cygni or inverse-P-Cygni-like residuals), problematic airglow subtraction)
+    - 10150-11 # Suspicious or bad cross-correlation function (CCF)
     #   These are also spectrum-related flags for data reduction, but we won't propagate
     #   them because they won't affect all nodes in the same way
-    #  10151 # No radial velocity determination
-    #  10152 # Suspicious radial velocity determination
-    #  10153 # Discrepant radial velocities (use suffix to specify the threshold; e.g., |RV_max-RV_min| > 5*err_RV )
-    #  10154 # Abnormally large RV error (use suffix to specify the threshold)
-    #  10155 # Revised radial velocity (use `VRAD' column to specify the new determination)
-    #  10200 # No rotational velocity (v*sin(i)) determination
-    #  10210 # Revised rotational velocity (v*sin(i); use `VSINI' column to specify the new determination)
-  10105: # Incomplete spectrum (missing wavelengths)
+    #  10151-11 # No radial velocity determination
+    #  10152-11 # Suspicious radial velocity determination
+    #  10153-11 # Discrepant radial velocities (use suffix to specify the threshold; e.g., |RV_max-RV_min| > 5*err_RV )
+    #  10154-11 # Abnormally large RV error (use suffix to specify the threshold)
+    #  10155-11 # Revised radial velocity (use `VRAD' column to specify the new determination)
+    #  10200-11 # No rotational velocity (v*sin(i)) determination
+    #  10210-11 # Revised rotational velocity (v*sin(i); use `VSINI' column to specify the new determination)
+  10105-11: # Incomplete spectrum (missing wavelengths)
     # Only if not IACAIP (node_id = 8) and not Nice (node_id = 10)
     constraint: "node_id != 8 AND node_id != 10"
 
@@ -35,43 +35,52 @@ propagate_flags_by_spectrum:
 # result as being suspicious, and won't get used in homogenisation.
 node_specific_flags:
   no_constraint:
-    - 10300 # Key setup(s) for a given paramater determination is missing
-    - 10301 # Node's renormalisation failed
-    - 10302 # Code convergence issue: one of more convergence criteria (node-specific) could not be fulfilled. Criteria to be described using the suffix
-    - 10303 # Code convergence issue: temperature (Teff) is out of the node's grid. Conditions to be described using the suffix
-    - 10304 # Code convergence issue: gravity (log g) is out of the node's grid. Conditions to be described using the suffix
-    - 10305 # Code convergence issue: metallicity ([M/H] or [Fe/H]) is out of the node's grid. Conditions to be described using the suffix
-    - 10306 # Code convergence issue: microturbulent velocity (vtur) is out of the node's grid. Conditions to be described using the suffix
-    - 10307 # Code convergence issue: [alpha/Fe] is out of the node's grid. Conditions to be described using the suffix
-    - 10308 # One or more parameter (which could not be identified) outside the node's grid; if possible rather use 10303-10307 flags
-    #10309 # Photometric gravity (instead of spectroscopic gravity)
-    - 10311 # No parameters because too few Fe I lines
-    - 10312 # No parameters because too few FeII lines
-    - 10313 # The node-measured broadening is too small
-    - 10314 # The node-measured broadening is too large
-    #10315 # Microturbulence is determined according to the last Bergemann and Hill prescription (http://great.ast.cam.ac.uk/GESwiki/GesWg/GesWg11/Microturbulence)
-    - 10316 # Incomplete/missing set of parameters because some parameter(s) are in a specific range. Conditions to be described using the suffix
-    - 10317 # Incomplete/missing set of parameters because of mass loss / wind determination problems. Conditions to be described using the suffix
-    - 10318 # Code convergence issue: only upper/lower limit on Teff was derivable but will not be provided. /!\ Use only if Teff is NOT provided. If Teff is provided as an upper/lower limit, absolutely use the fits column LIM_TEFF
-    - 10319 # Code convergence issue: only upper/lower limit on log g was derivable but will not be provided. /!\ Use only if logg is NOT provided. If log g is provided as an upper/lower limit, absolutely use the fits column LIM_LOGG
-    - 10399 # No parameters provided because of lack of time
-    - 10500 # No EW measurements
-    - 13020 # Suspicious stellar parameters because temperature (Teff) is on the node's grid edge. Conditions to be described using the suffix
-    - 13021 # Suspicious stellar parameters because gravity (log g) is on the node's grid edge. Conditions to be described using the suffix
-    - 13022 # Suspicious stellar parameters because metallicity ([M/H] or [Fe/H]) is on the node's grid edge. Conditions to be described using the suffix
-    - 13023 # Suspicious stellar parameters because microturbulent velocity (vtur) is on the node's grid edge. Conditions to be described using the suffix
-    - 13024 # Suspicious stellar parameters because [alpha/Fe] is on the node's grid edge. Conditions to be described using the suffix
-    - 13025 # Suspicious macroturbulence because v*sin(i) is too high. Conditions to be described using the suffix
-    - 13026 # Incompatibility between spectroscopy and photometry
-    - 13028 # Suspicious stellar parameters because v*sin(i) is too high. Conditions to be described using the suffix
-    - 14126 # High Fe I dispersion
-  11020: # v*sin(i) too high, preventing the determination of some/all parameters: v*sin(i) >  20 km/s
+    - 10300-11 # Key setup(s) for a given paramater determination is missing
+    - 10301-11 # Node's renormalisation failed
+    - 10302-11 # Code convergence issue: one of more convergence criteria (node-specific) could not be fulfilled. Criteria to be described using the suffix
+    - 10303-11 # Code convergence issue: temperature (Teff) is out of the node's grid. Conditions to be described using the suffix
+    - 10304-11 # Code convergence issue: gravity (log g) is out of the node's grid. Conditions to be described using the suffix
+    - 10305-11 # Code convergence issue: metallicity ([M/H] or [Fe/H]) is out of the node's grid. Conditions to be described using the suffix
+    - 10306-11 # Code convergence issue: microturbulent velocity (vtur) is out of the node's grid. Conditions to be described using the suffix
+    - 10307-11 # Code convergence issue: [alpha/Fe] is out of the node's grid. Conditions to be described using the suffix
+    - 10308-11 # One or more parameter (which could not be identified) outside the node's grid; if possible rather use 10303-10307 flags
+    #10309-11 # Photometric gravity (instead of spectroscopic gravity)
+    - 10311-11 # No parameters because too few Fe I lines
+    - 10312-11 # No parameters because too few FeII lines
+    - 10313-11 # The node-measured broadening is too small
+    - 10314-11 # The node-measured broadening is too large
+    #10315-11 # Microturbulence is determined according to the last Bergemann and Hill prescription (http://great.ast.cam.ac.uk/GESwiki/GesWg/GesWg11/Microturbulence)
+    - 10316-11 # Incomplete/missing set of parameters because some parameter(s) are in a specific range. Conditions to be described using the suffix
+    - 10317-11 # Incomplete/missing set of parameters because of mass loss / wind determination problems. Conditions to be described using the suffix
+    - 10318-11 # Code convergence issue: only upper/lower limit on Teff was derivable but will not be provided. /!\ Use only if Teff is NOT provided. If Teff is provided as an upper/lower limit, absolutely use the fits column LIM_TEFF
+    - 10319-11 # Code convergence issue: only upper/lower limit on log g was derivable but will not be provided. /!\ Use only if logg is NOT provided. If log g is provided as an upper/lower limit, absolutely use the fits column LIM_LOGG
+    - 10399-11 # No parameters provided because of lack of time
+    - 10500-11 # No EW measurements
+    - 13020-11 # Suspicious stellar parameters because temperature (Teff) is on the node's grid edge. Conditions to be described using the suffix
+    - 13021-11 # Suspicious stellar parameters because gravity (log g) is on the node's grid edge. Conditions to be described using the suffix
+    - 13022-11 # Suspicious stellar parameters because metallicity ([M/H] or [Fe/H]) is on the node's grid edge. Conditions to be described using the suffix
+    - 13023-11 # Suspicious stellar parameters because microturbulent velocity (vtur) is on the node's grid edge. Conditions to be described using the suffix
+    - 13024-11 # Suspicious stellar parameters because [alpha/Fe] is on the node's grid edge. Conditions to be described using the suffix
+    - 13025-11 # Suspicious macroturbulence because v*sin(i) is too high. Conditions to be described using the suffix
+    - 13026-11 # Incompatibility between spectroscopy and photometry
+    - 13028-11 # Suspicious stellar parameters because v*sin(i) is too high. Conditions to be described using the suffix
+    - 14126-11 # High Fe I dispersion
+    - 10010-10 # No results or inaccurate results: SNR < 10 for at least one setting
+    - 10050-10 # No results or inaccurate results: SNR < 50 for at least one setting
+    - 10153-10 # Discrepant radial velocities (use suffix to specify the threshold; e.g., |RV_max-RV_min| > 5*err_RV )
+    - 10302-10 # Code convergence issue: one of more convergence criteria (node-specific) could not be fulfilled. Criteria to be described using the suffix
+    - 10308-10 # One or more parameter (which could not be identified) outside the node's grid; if possible rather use 10303-10307 flags
+    - 10399-10 # No parameters provided because of lack of time
+    - 13020-10 # Suspicious stellar parameters because temperature (Teff) is on the node's grid edge. Conditions to be described using the suffix
+    - 13021-10 # Suspicious stellar parameters because gravity (log g) is on the node's grid edge. Conditions to be described using the suffix
+    - 13022-10 # Suspicious stellar parameters because metallicity ([M/H] or [Fe/H]) is on the node's grid edge. Conditions to be described using the suffix
+  11020-11: # v*sin(i) too high, preventing the determination of some/all parameters: v*sin(i) >  20 km/s
     # Only if it is not OACT, because we know they can deal with high vsini
     constraint: "node_id != 11 AND node_id != 21 AND node_id != 34"
-  11050: # v*sin(i) too high, preventing the determination of some/all parameters: v*sin(i) >  50 km/s
+  11050-11: # v*sin(i) too high, preventing the determination of some/all parameters: v*sin(i) >  50 km/s
     # Only if it is not OACT, because we know they can deal with high vsini
     constraint: "node_id != 11 AND node_id != 21 AND node_id != 34"
-  10105: # Incomplete spectrum (missing wavelengths)
+  10105-11: # Incomplete spectrum (missing wavelengths)
     # Only if not IACAIP (node_id = 8) and not Nice (node_id = 10)
     constraint: "node_id != 8 AND node_id != 10"
 

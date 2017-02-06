@@ -14,7 +14,7 @@ logger = logging.getLogger("ges")
 
 
 def wg_recommended_sp_template(database, input_path, output_path, wg,
-    ext=-1, overwrite=False, **kwargs):
+    ext=-1, overwrite=False, match_by_setup=False, **kwargs):
     """
     Produce a WG-recommended file of stellar parameters from the template 
     provided (on a per CNAME) basis.
@@ -128,11 +128,14 @@ def wg_recommended_sp_template(database, input_path, output_path, wg,
         logger.info("At row {}/{}: {}".format(i + 1, N, cname))
 
         record = database.retrieve_table(
-            """ SELECT {columns}
+            """ SELECT setup, {columns}
                   FROM wg_recommended_results
                  WHERE wg = '{wg}'
                    AND cname = '{cname}'
-            """.format(wg=wg, cname=cname, columns=", ".join(columns)))
+                   {setup_constraint}
+            """.format(wg=wg, cname=cname, columns=", ".join(columns),
+                setup_constraint="" if not match_by_setup \
+                                    else "AND TRIM(setup) = '{}'".format(image[ext].data["SETUP"][i])))
 
         if record is None:
             # Keep whatever is currently there in the template.

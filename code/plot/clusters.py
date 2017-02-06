@@ -75,7 +75,7 @@ def hertzsprung_russell_diagrams(database, cluster_names=None,
         all WGs will be shown.
     """
 
-
+    isochrone_filenames = isochrone_filenames or {}
     velocity_constraints = velocity_constraints or {}
     
     if cluster_names is None:
@@ -85,12 +85,13 @@ def hertzsprung_russell_diagrams(database, cluster_names=None,
         cluster_names = sorted(
             cluster_names, key=lambda k: literature.get(k, -np.inf))
 
-    sql_constraint = "" if sql_constraint is None else " AND {}".format(sql_constraint)
+    sql_constraint = "" if sql_constraint is None else " AND ({})".format(sql_constraint)
 
     #"#e74c3c"
 
     default_styles = {
         10: dict(facecolor="#e67e22"), #1abc9c"),
+        110: dict(facecolor="#e67e22"), #1abc9c"),
         11: dict(facecolor="#2ecc71",),
         12: dict(facecolor="#3498db",),
         13: dict(facecolor="#9b59b6",),
@@ -112,15 +113,20 @@ def hertzsprung_russell_diagrams(database, cluster_names=None,
     for i, (ax, cluster_name) in enumerate(zip(axes, cluster_names)):
 
         # Get the data for this cluster.
-        candidates = database.retrieve_table(
-            """ SELECT  s.vel, r.wg, 
-                        r.teff, r.logg, r.feh, 
-                        r.e_teff, r.e_logg, r.e_feh
-                  FROM  wg_recommended_results AS r, spectra AS s
-                 WHERE  s.cname = r.cname
-                   AND  r.teff <> 'NaN' AND r.logg <> 'NaN' AND r.feh <> 'NaN'
-                   AND  s.ges_fld = '{}' {}""".format(cluster_name, sql_constraint))
-
+        candidates = database.retrieve_table("""
+            WITH s  AS (
+                SELECT cname, vel FROM spectra WHERE ges_fld = '{ges_fld}')
+            SELECT DISTINCT ON (r.id)
+                    r.id, r.wg, r.cname, r.setup, r.filename, s.vel,
+                    r.teff, r.logg, r.feh,
+                    r.e_teff, r.e_logg, r.e_feh,
+                    r.nn_nodes_teff, r.nn_nodes_logg, r.nn_nodes_feh,
+                    r.nn_spectra_teff, r.nn_spectra_logg, r.nn_spectra_feh
+            FROM    wg_recommended_results AS r, s
+            WHERE   s.cname = r.cname
+              AND   r.teff <> 'NaN' AND r.logg <> 'NaN' AND r.feh <> 'NaN'
+                    {sql_constraint}""".format(
+                        ges_fld=cluster_name, sql_constraint=sql_constraint))
 
         v_min, v_max = velocity_constraints.get(cluster_name, (-np.inf, +np.inf))
         v_min, v_max = (v_max, v_min) if v_min > v_max else (v_min, v_max)
@@ -132,7 +138,7 @@ def hertzsprung_russell_diagrams(database, cluster_names=None,
         is_member = (v_max >= candidates["vel"]) * (candidates["vel"] >= v_min) \
                   * (f_max >= candidates["feh"]) * (candidates["feh"] >= f_min)
 
-        members = candidates[is_member].group_by("wg")
+        members = candidates[is_member].group_by(["wg"])
 
         for group in members.groups:
             wg = group["wg"][0]
@@ -143,19 +149,22 @@ def hertzsprung_russell_diagrams(database, cluster_names=None,
 
             y_offset = np.zeros(len(group))
 
-            if wg == 10:
-                # WG-15 style corection # MAGIC
-                m = 0.5/-2
-
-                y_offset = \
-                    np.ones(len(group)) * np.clip(m * (np.nanmedian(group["feh"]) - 0.5), 0, np.inf)
-                y_offset[group[y_axis] > 3.5] = 0.0
-
             ax.scatter(group[x_axis], group[y_axis] + y_offset, s=30, alpha=0.75, 
                 **style_kwds)
             ax.errorbar(group[x_axis], group[y_axis] + y_offset,
                 xerr=group["e_" + x_axis], yerr=group["e_" + y_axis],
                 fmt=None, ecolor="#666666", alpha=0.25, zorder=-1)
+
+        isochrone_filename = isochrone_filenames.get(cluster_name, None)
+        if isochrone_filename is not None:
+            isochrone = utils.parse_isochrone(isochrone_filename)
+
+            #label, _ = os.path.splitext(os.path.basename(isochrone_filename))
+            #label = label.replace("_", "-")
+            
+            ax.plot(isochrone["teff"], isochrone["logg"],
+                c="#666666", lw=2, zorder=-1)
+
 
         ax.set_title(cluster_name)
         ax.set_xlim(xlim)

@@ -41,7 +41,7 @@ velocity_constraints = {
 
 metallicity_constraints = {
     "M15": (-5, -0.50),
-    "NGC4372": (-3, -1),
+    "NGC4372": (-3, -2.0),
     #"NGC4833": (-2.50, -1.75),
     "M2": (-5, -1.30), #--> check
     #-->"NGC1904": (-1.70, -1.00),
@@ -67,8 +67,30 @@ fig = plot.wg_metallicity_overview(database, x_axis="logg",
     ptp_ylim=None, sql_constraint="((s.wg = 10 and r.nn_nodes_teff > 1 and r.snr > 10 and r.teff > 4000 and r.teff < 6500) or (s.wg != 10))")
 """
 
+
+isochrone_filenames = {
+    "M15":     "isochrones/M15_Parsec_12Gyr_Z0.0001.dat",
+    "NGC4372": "isochrones/NGC4372_Parsec2.9_10Gyr_Z0.0001.dat",
+    "M2": "isochrones/M2_Parsec2.9_12Gyr_Z0.00034.dat",
+    "NGC1904": "isochrones/NGC1904_Parsec2.9_12Gyr_Z0.00038.dat",
+    "NGC6752": "isochrones/NGC6752_Parsec2.9_12Gyr_Z0.000438.dat",
+    "M12": "isochrones/M12_Parsec2.9_12Gyr_Z0.000648.dat",
+    "NGC1261": "isochrones/NGC1261_Parsec2.9_12Gyr_Z0.000816.dat",
+    "NGC362": "isochrones/NGC362_Parsec2.9_12Gyr_Z0.000816.dat",
+    "NGC1851": "isochrones/NGC1851_Parsec2.9_12Gyr_Z0.001.dat",
+    "NGC2808": "isochrones/NGC2808_Parsec2.9_12Gyr_Z0.0011.dat",
+    "NGC104": "isochrones/NGC104_Parsec2.9_12Gyr_Z0.002896.dat",
+    "NGC5927": "isochrones/NGC5927_Parsec2.9_12Gyr_Z0.00491.dat",
+    "NGC6553": "isochrones/NGC6553_Parsec2.9_12Gyr_Z0.01.dat",
+    "NGC4833": "isochrones/NGC4833_Parsec_12Gyr_Z0.0002.dat",
+    "NGC5927": "isochrones/NGC5927_Parsec_11Gyr_Z0.004.dat",
+    "NGC2243": "isochrones/NGC2243_Parsec_4.5Gyr_Z0.004.dat",
+    "NGC6705": "isochrones/NGC6705_Parsec_0.3Gyr_Z0.018.dat",
+}  
+
 fig = plot.hertzsprung_russell_diagrams(database, figsize=(10.725, 12.4125),
     cluster_names=cluster_names, velocity_constraints=velocity_constraints,
-    metallicity_constraints=metallicity_constraints, wgs=(10, 11, 12, 13),
-    sql_constraint="((s.wg = 10 and r.nn_nodes_teff > 1 and r.snr > 10 and r.teff > 4000 and r.teff < 6500) or (s.wg != 10))")
-fig.savefig("figures/wg-hrds.pdf", dpi=300)
+    metallicity_constraints=metallicity_constraints, wgs=(10, 11, ),
+    isochrone_filenames=isochrone_filenames,
+    sql_constraint="(r.wg = 10 and trim(r.setup) = 'HR10|HR21' and r.snr > 10 and r.nn_nodes_teff > 1) or (r.wg = 11 and r.nn_nodes_teff > 5)")#="((s.wg = 110 and r.nn_nodes_teff > 1 and r.snr > 10 and r.teff > 4000 and r.teff < 6500) or (s.wg != 110 and s.wg != 11) or (s.wg = 11 and r.nn_nodes_teff > 2))")
+fig.savefig("figures/ges-dr5-clusters-all-wgs-hrds-20170206.pdf", dpi=300)

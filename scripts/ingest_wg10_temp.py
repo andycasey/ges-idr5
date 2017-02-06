@@ -27,7 +27,7 @@ with open(db_filename, "r") as fp:
 database = GESDatabase(**credentials)
 
 # Ingest shitty WG10 results
-data = Table.read("recommended-results/GES_iDR5_WG10_Recommended_PERSETUP.fits")
+data = Table.read("recommended-results/GES_iDR5_WG10_RecommendedTemplate_14072016_PERSETUP.fits")
 
 
 
@@ -192,6 +192,8 @@ N = len(data.groups)
 for i, group in enumerate(data.groups):
 
     row = group[0]
+    if row["SETUP"] != "HR10|HR21": continue
+    
     """
     hr1021 = np.where(group["SETUP"] == "HR10|HR21")[0]
     if not hr1021:

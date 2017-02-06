@@ -418,8 +418,10 @@ class BaseEnsembleModel(object):
 
         model_code = kwargs.get("model_code", None)
         if model_code is None:
-            with open(self._MODEL_PATH, "r") as fp:
+            model_path = kwargs.get("model_path", self._MODEL_PATH)
+            with open(model_path, "r") as fp:
                 model_code = fp.read()
+            self._MODEL_PATH = model_path
 
         self._model_code = model_code
         

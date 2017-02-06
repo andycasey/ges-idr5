@@ -42,6 +42,7 @@ transformed data {
 parameters {
     real truths[C]; // God's word: true values of the calibrators.
     real biases[N]; // biases in the individual nodes
+
     real<lower=lower_bound, upper=upper_bound> missing_estimates[TM];
 
     // Cholesky factor of a correlation matrix
@@ -75,6 +76,7 @@ transformed parameters {
                     sigma[n] = sqrt(
                         alpha_sq[n] * spectrum_isnr[v, c] + // random
                         systematic_variance[n]);            // systematic
+                    //sigma[n] = sqrt(systematic_variance[n]);
 
                     if (is_missing[c, n, v]) {
                         full_rank_estimates[c, n, v] = missing_estimates[mi] - biases[n];
@@ -113,9 +115,11 @@ model {
 }
 
 generated quantities {
+    vector[N] alpha;
     vector[N] systematic_sigma;
 
     for (n in 1:N) {
         systematic_sigma[n] = pow(systematic_variance[n], 0.5);
+        alpha[n] = pow(alpha_sq[n], 0.5);
     }
 }

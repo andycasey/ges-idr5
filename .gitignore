@@ -10,6 +10,13 @@ code/model/*.compiled
 *.png
 *.pdf
 
+*.tar
+*.tar.gz
+*.log
+*.tsv
+*.sql
+*.csv
+
 article/vc.tex
 article/ms.aux
 article/ms.log

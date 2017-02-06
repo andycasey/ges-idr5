@@ -59,10 +59,11 @@ for wg, node_names in all_nodes.items():
 N_ingested = database.ingest_spectra_masterlist(masterlist_filename)
 
 # Ingest results from the nodes.
-for filename in glob("node-results/stellar-parameters/WG??/GES_iDR5_WG??_*.fits"):
+for filename in glob("node-results/stellar-parameters/WG10/GES_iDR5_WG??_*.fits"):
     N = database.ingest_node_results(filename, extension=1)
     logger.info("Ingested {} results from {}".format(N, filename))
 
+raise a
 
 # Ingest additional photometric temperatures from Laura Magrini.
 #for filename in glob("fits-templates/additional-tphots-magrini/*.fits"):

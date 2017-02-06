@@ -10,11 +10,18 @@ def parse_isochrone(filename):
         The filename of the isochrone.
     """
 
+    is_new_parsec = "parsec2.9" in filename.lower()
+
     is_parsec = "parsec" in filename.lower()
     kwds = {
         "format": "ascii"
     }
-    if is_parsec:
+    if is_new_parsec:
+        kwds.update({
+            "data_start": 0,
+            "header_start": 5
+        })
+    elif is_parsec:
         kwds.update({
             "data_start": 0,
             "header_start": 13
@@ -23,7 +30,11 @@ def parse_isochrone(filename):
     isochrone = Table.read(filename, **kwds)
 
     # Make columns common.
-    if is_parsec:
+    if is_new_parsec:
+        # Fuck you girardi
+        isochrone["teff"] = 10**isochrone["logTe"]
+
+    elif is_parsec:
         isochrone["logg"] = isochrone["logG"]
         isochrone["teff"] = 10**isochrone["logTe"]
 

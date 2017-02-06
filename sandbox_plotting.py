@@ -29,7 +29,7 @@ database = GESDatabase(**credentials)
 
 
 debug = False
-wgs = (10, 11, 12, 13)
+wgs = (10, )#11, 12, 13)
 parameters = ("teff", "logg", "mh", "xi")
 isochrones = glob("isochrones/*.dat")
 
@@ -38,7 +38,7 @@ isochrones = glob("isochrones/*.dat")
 
 
 # Create node-level folders.
-nodes = database.retrieve_table("SELECT id, wg, TRIM(name) as name FROM nodes")
+nodes = database.retrieve_table("SELECT id, wg, TRIM(name) as name FROM nodes WHERE wg in %s", (wgs, ))
 for node in nodes:
     folder = "figures/qc/wg{}/{}".format(node["wg"], node["name"])
     if not os.path.exists(folder):

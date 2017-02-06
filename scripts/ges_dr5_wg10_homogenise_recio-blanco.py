@@ -58,6 +58,15 @@ node_submissions = \
 # Create a table that we will use to put in the homogenised values.
 homogenised_table = first_submission.copy()
 
+# Specify the parameters to homogenise.
+parameters = ("TEFF", "LOGG", "FEH")
+
+# Put all the PARAMETER (and E_PARAMETER) columns as NaNs
+for parameter in parameters:
+    homogenised_table[parameter] = np.nan
+    homogenised_table["E_{}".format(parameter)] = np.nan
+
+
 # Select a high-quality sub-sample of common stars between all nodes where the
 # SNR > 15, and within reasonable ranges.
 
@@ -83,15 +92,13 @@ all_transformation_subset_requirements = {
     ]
 }
 
-# Specify the parameters to homogenise.
-parameters = ("TEFF", "LOGG", "FEH")
 
 # We will reference the group indices from the first node submission.
 group_indices = node_submissions[0].groups.indices
 for index in range(group_indices.size - 1):
     gi, gj = group_indices[index:index + 2]
 
-    setup = node_submissions[0]["SETUP"][gi]
+    setup = node_submissions[0]["SETUP"][gi].strip()
 
     # Only consider the results from this setup.
     only_consider = np.zeros(len(first_submission), dtype=bool)
@@ -101,11 +108,6 @@ for index in range(group_indices.size - 1):
 
     if setup not in all_transformation_subset_requirements:
         print("Skipping stars with SETUP = {0}".format(setup))
-
-        # Put all the PARAMETER (and E_PARAMETER) columns as NaNs
-        for parameter in parameters:
-            homogenised_table[parameter][only_consider] = np.nan
-            homogenised_table["E_{}".format(parameter)][only_consider] = np.nan
 
         # Continue to the next setup.
         continue
@@ -281,6 +283,11 @@ for index in range(group_indices.size - 1):
     fig.tight_layout()
     fig.savefig(
         "ges-dr5-wg10-{0}-recio-blanco-calibration-comparison.pdf".format(setup))
+    fig.savefig(
+        "ges-dr5-wg10-{0}-recio-blanco-calibration-comparison.png".format(setup),
+        dpi=100)
+
+
 
     # Produce a homogenised set of values using the pre-calculated weights.
     for parameter, w in weights.items():
@@ -288,7 +295,12 @@ for index in range(group_indices.size - 1):
             node_submission["CALIBRATED_{}".format(parameter)][only_consider] \
             for node_submission in node_submissions])
 
+
         homogenised_table[parameter][only_consider] = np.sum(x.T * w, axis=1)
+
+        
+        raise a
+
 
         # As per the report, the errors are taken as the standard deviation of
         # the results.

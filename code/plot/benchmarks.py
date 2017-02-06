@@ -99,8 +99,7 @@ def node_benchmark_performance(database, wg, node_name, sort_by="TEFF",
         N += np.hstack(diff).size
         bp = ax.boxplot(diff, widths=width, patch_artist=True)
         ax.set_xlim(-0.5, len(benchmarks) + 0.5)
-        raise CHECKTHIS
-
+        
         ax.set_ylabel(ylabels.get(parameter))
         ylim = ylims.get(parameter, None)
         if ylim is not None:
@@ -152,6 +151,7 @@ def node_benchmark_performance(database, wg, node_name, sort_by="TEFF",
 
 def wg_benchmark_performance(database, wg, truths, show_recommended=False,
     sort_by=None, ylims=None, node_sql_constraint=None, skip_missing=True,
+    recommended_sql_constraint=None,
     show_num_estimates=None, xlabels=None, ylabels=None, **kwargs):
     """
     Show a box-and-whisker plot for the benchmark parameters reported by a given
@@ -202,6 +202,7 @@ def wg_benchmark_performance(database, wg, truths, show_recommended=False,
     width = kwargs.get("width", 0.45)
     colors = kwargs.get("colors", ("#000000", "#4daf4a", "#e41a1c"))
 
+    
     show_num_estimates = True if ylims is None or show_num_estimates else False
     xlabels = xlabels or {}
     ylims = ylims or {}
@@ -238,6 +239,8 @@ def wg_benchmark_performance(database, wg, truths, show_recommended=False,
                 parameter=parameter, wg=wg, ges_fld=benchmark["GES_FLD"].strip(),
                 node_sql_constraint_str=" AND {}".format(node_sql_constraint) \
                     if node_sql_constraint is not None else "",
+                recommended_sql_constraint_str = "" if recommended_sql_constraint is None \
+                                    else " AND {} ".format(recommended_sql_constraint),
                 recommended_table=kwargs.get(
                     "recommended_table", "wg_recommended_results"))
 
@@ -271,7 +274,8 @@ def wg_benchmark_performance(database, wg, truths, show_recommended=False,
                           FROM  {recommended_table} as wgr, spectra
                          WHERE  wgr.wg = {wg}
                            AND  wgr.cname = spectra.cname
-                           AND  TRIM(spectra.ges_fld) = '{ges_fld}';
+                           AND  TRIM(spectra.ges_fld) = '{ges_fld}'
+                           {recommended_sql_constraint_str};
                     """.format(**kwds))
 
                 if wg_recommended is None:

@@ -105,7 +105,7 @@ def param_vs_param(database, wg, node_name, ges_fld, reference_parameter,
 
 def cluster(database, ges_fld, wg, node_name=None, vel_range=None,
     isochrone_filename=None, limit_to_isochrone_range=False, ax=None,
-    no_tech_flags=False, show_legend=True, **kwargs):
+    no_tech_flags=False, show_legend=True, sql_constraint=None, **kwargs):
     """
     Show a Hertzsprung-Russell diagram for cluster stars, with isochrones
     optionally shown.
@@ -151,11 +151,11 @@ def cluster(database, ges_fld, wg, node_name=None, vel_range=None,
         # Get the data.
         table = "results"
         node_id = database.retrieve_node_id(wg, node_name)
-        sql_constraint = "AND r.node_id = '{}'".format(node_id)
+        table_constraint = "AND r.node_id = '{}'".format(node_id)
 
     else:
         table = "wg_recommended_results"
-        sql_constraint = "AND r.wg = '{}'".format(wg)
+        table_constraint = "AND r.wg = '{}'".format(wg)
 
     
     if no_tech_flags:
@@ -174,9 +174,12 @@ def cluster(database, ges_fld, wg, node_name=None, vel_range=None,
                 AND TRIM(s.ges_fld) = '{ges_fld}'
                 AND s.vel > '{lower_vel}'
                 AND s.vel < '{upper_vel}'
-                {sql_constraint} {tech_flag_constraint}""".format(
+                {sql_constraint}
+                {table_constraint} {tech_flag_constraint}""".format(
                     table=table, ges_fld=ges_fld, 
-                    sql_constraint=sql_constraint,
+                    sql_constraint="" if sql_constraint is None \
+                                      else " AND {} ".format(sql_constraint),
+                    table_constraint=table_constraint,
                     tech_flag_constraint=tech_flag_constraint,
                     lower_vel=min(vel_range), upper_vel=max(vel_range)))
 
