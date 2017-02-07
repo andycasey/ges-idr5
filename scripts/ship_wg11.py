@@ -24,6 +24,8 @@ ship.wg_recommended_sp_template(database,
     "outputs/GES_iDR5_WG11_Recommended_PERSETUP.fits",
     11, overwrite=True)
 
+raise a
+
 # Produce a per CNAME file.
 ship.wg_recommended_sp_template(database,
     "fits-templates/recommended-templates/GES_iDR5_WG11_RecommendedTemplate_16072016_FixedLengthFLAGColumns.fits",

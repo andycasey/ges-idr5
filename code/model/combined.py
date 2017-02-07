@@ -378,7 +378,7 @@ class CombinedModel(BaseCombinedModel):
         # Get the node data for all the benchmarks.
         data = self._database.retrieve_table(
             """ WITH    n AS (
-                            SELECT id FROM nodes WHERE wg = {wg}), 
+                            SELECT id, name FROM nodes WHERE wg = {wg}), 
                         s AS (
                             SELECT cname, ges_type, ges_fld
                             FROM spectra
@@ -456,6 +456,13 @@ class CombinedModel(BaseCombinedModel):
             y[node_id] = np.array(y[node_id])
             before[node_id] = np.array(before[node_id])
 
+            finite = np.isfinite(y[node_id]) * np.all(np.isfinite(x[node_id]), axis=0)
+            
+            x[node_id] = x[node_id][:, finite]
+            y[node_id] = y[node_id][finite]
+            before[node_id] = before[node_id][finite]
+
+
         # For each node, find the coefficients to map the results.
         model = lambda x, *theta: np.dot(theta, x)
 
@@ -464,6 +471,7 @@ class CombinedModel(BaseCombinedModel):
         for node_id in set(data["node_id"]):
 
             xn, yn = (x[node_id], y[node_id])
+
             theta, cov = op.curve_fit(model, xn, yn, p0=np.zeros(xn.shape[0]))
             
             mapping_coefficients[node_id] = (theta, cov)

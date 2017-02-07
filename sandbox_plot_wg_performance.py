@@ -27,9 +27,28 @@ debug = True
 cluster_velocities = Table.read("fits-templates/oc_gc_radial_vel.dat", format="ascii")
 
 
-for wg in (10, ):
+for wg in (11, ):
 
-    sql_constraint = "TRIM(r.SETUP) = 'HR10|HR21'"
+    sql_constraint = None # "TRIM(r.SETUP) = 'HR10|HR21'"
+
+    # Plot benchmarks first.
+    fig = plot.wg_benchmark_performance(database, wg, benchmarks, 
+        show_recommended=True, ylims=dict(TEFF=1000, LOGG=1, FEH=1),
+        recommended_sql_constraint=None, #"TRIM(wgr.SETUP) = 'HR10|HR21'",
+        recommended_table="wg_recommended_results")
+    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks-zoom.pdf".format(wg=wg), **savefig_kwds)
+    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks-zoom.png".format(wg=wg), **savefig_kwds)
+
+
+    fig = plot.wg_benchmark_performance(
+        database, wg, benchmarks, show_recommended=True,
+        recommended_sql_constraint=None, #"TRIM(wgr.SETUP) = 'HR10|HR21'",
+        recommended_table="wg_recommended_results")
+    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks.pdf".format(wg=wg), **savefig_kwds)
+    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks.png".format(wg=wg), **savefig_kwds)
+
+
+    raise a
 
 
     for isochrone in isochrones:
@@ -91,22 +110,6 @@ for wg in (10, ):
                 print("Created figure {}.pdf".format(basename))
 
 
-
-    # Plot benchmarks first.
-    fig = plot.wg_benchmark_performance(database, wg, benchmarks, 
-        show_recommended=True, ylims=dict(TEFF=1000, LOGG=1, FEH=1),
-        recommended_sql_constraint="TRIM(wgr.SETUP) = 'HR10|HR21'",
-        recommended_table="wg_recommended_results")
-    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks-zoom.pdf".format(wg=wg), **savefig_kwds)
-    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks-zoom.png".format(wg=wg), **savefig_kwds)
-
-
-    fig = plot.wg_benchmark_performance(
-        database, wg, benchmarks, show_recommended=True,
-        recommended_sql_constraint="TRIM(wgr.SETUP) = 'HR10|HR21'",
-        recommended_table="wg_recommended_results")
-    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks.pdf".format(wg=wg), **savefig_kwds)
-    fig.savefig("figures/wg{wg}/wg{wg}-benchmarks.png".format(wg=wg), **savefig_kwds)
 
 
 raise a

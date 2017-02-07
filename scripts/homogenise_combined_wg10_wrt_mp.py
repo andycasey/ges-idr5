@@ -39,10 +39,30 @@ model_paths = "homogenisation-wg{wg}-{parameter}-{setup}-combined-wrt-MaxPlanck.
 
 wgs = (10, )
 parameter_scales = OrderedDict([
-    ("teff", 250),
-    ("logg", 0.25),
+#    ("teff", 250),
+#    ("logg", 0.25),
     ("feh", 0.25)
 ])
+
+
+vector_terms = {
+    "teff":[
+        (("teff", ), 1),
+        (("logg", ), 1),
+        (("feh", ), 1),
+    ],
+    "logg": [
+        (("teff", ), 1),
+        (("logg", ), 1),
+        (("feh", ), 1),
+    ],
+    "feh": [
+        (("feh", ), 1),
+    ]
+
+}
+
+reference_node_id = database.retrieve_node_id(10, "MaxPlanck-HR21")
 
 
 sample_kwds = dict(chains=2, iter=4000)
@@ -62,12 +82,18 @@ for wg in wgs:
                 model = CombinedModel.read(model_path, database)
                 
             else:
-                model = CombinedModel(database, wg, parameter, benchmarks)
-
-                data, metadata = model._prepare_data(
+                model = CombinedModel(database, 10, parameter, benchmarks)
+                data, metadata = model._prepare_mapped_data(
                     default_sigma_calibrator=default_sigma_calibrator, 
                     minimum_node_estimates=1,
-                    sql_constraint="TRIM(name) LIKE '%-{}'".format(setup))
+                    vector_terms=vector_terms[parameter],
+                    reference_node_id=reference_node_id,
+                    sql_constraint_for_mapping_query="(r.teff < 6000 or name not like 'Nice%') and r.snr > 50 and r.teff > 4000 and r.teff < 6500 and "
+                        "r.logg > 0 and r.logg < 5 and r.feh > -1 and r.feh < +0.25"
+                        " and passed_quality_control and (trim(name) like '%-{setup}' or node_id = {reference_node_id})".format(
+                            setup=setup, reference_node_id=reference_node_id),
+                    sql_constraint_for_data_query="TRIM(name) LIKE '%-{}'".format(setup),
+                    match_by="cname")
 
 
                 init = {
@@ -87,7 +113,6 @@ for wg in wgs:
                 model.write(model_path, 
                     overwrite=True, __ignore_model_pars=("Sigma", "full_rank_estimates"))
 
-
             model.homogenise_stars_matching_query("""
                 SELECT DISTINCT ON (cname) cname
                 FROM  results, nodes
@@ -99,3 +124,6 @@ for wg in wgs:
                 """.format(wg=wg, setup=setup, parameter=parameter),
                 sql_constraint="TRIM(nodes.name) LIKE '%-{}'".format(setup),
                 metadata={"setup": setup})
+
+
+        # ANDY: DO HR10 TEFF WG10 -- it is not complete.

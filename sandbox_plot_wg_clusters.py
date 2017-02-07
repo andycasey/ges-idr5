@@ -92,5 +92,5 @@ fig = plot.hertzsprung_russell_diagrams(database, figsize=(10.725, 12.4125),
     cluster_names=cluster_names, velocity_constraints=velocity_constraints,
     metallicity_constraints=metallicity_constraints, wgs=(10, 11, ),
     isochrone_filenames=isochrone_filenames,
-    sql_constraint="(r.wg = 10 and trim(r.setup) = 'HR10|HR21' and r.snr > 10 and r.nn_nodes_teff > 1) or (r.wg = 11 and r.nn_nodes_teff > 5)")#="((s.wg = 110 and r.nn_nodes_teff > 1 and r.snr > 10 and r.teff > 4000 and r.teff < 6500) or (s.wg != 110 and s.wg != 11) or (s.wg = 11 and r.nn_nodes_teff > 2))")
+    sql_constraint="(r.wg = 10 and trim(r.setup) = 'HR10|HR21' and r.snr > 10 and r.nn_nodes_teff > 1) or (r.wg = 11 and r.nn_nodes_teff > 1 and r.snr > 10)")#="((s.wg = 110 and r.nn_nodes_teff > 1 and r.snr > 10 and r.teff > 4000 and r.teff < 6500) or (s.wg != 110 and s.wg != 11) or (s.wg = 11 and r.nn_nodes_teff > 2))")
 fig.savefig("figures/ges-dr5-clusters-all-wgs-hrds-20170206.pdf", dpi=300)

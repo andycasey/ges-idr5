@@ -25,6 +25,7 @@ database = GESDatabase(**credentials)
 
 # Ingest results 
 filenames = glob("recommended-results/GES_iDR5_WG??_Recommended.fits")
+filenames = ["recommended-results/GES_iDR5_WG13_Recommended_PERSETUP.fits"]
 for filename in filenames:
     logger.info("Ingesting from {}".format(filename))
     database.ingest_recommended_results(filename, extension=1)

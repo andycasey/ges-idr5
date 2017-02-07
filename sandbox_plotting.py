@@ -29,7 +29,7 @@ database = GESDatabase(**credentials)
 
 
 debug = False
-wgs = (10, )#11, 12, 13)
+wgs = (11, )#11, 12, 13)
 parameters = ("teff", "logg", "mh", "xi")
 isochrones = glob("isochrones/*.dat")
 
